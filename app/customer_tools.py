@@ -220,19 +220,22 @@ def apply_compensation(
             "action_id": existing["action_id"],
         }
 
-    # Load policy for the issue type
-    issue_type = "late_delivery" if "late" in reason.lower() else reason.split("_")[0] + "_" + reason.split("_")[1] if "_" in reason else reason
+    # Load policy for the issue type at MEDIUM severity (safe default for manual calls)
+    issue_type = "late_delivery" if "late" in reason.lower() else (
+        "_".join(reason.split("_")[:2]) if "_" in reason else reason
+    )
     policy = conn.execute(
-        "SELECT * FROM policies WHERE issue_type = ?", (issue_type,)
+        "SELECT * FROM policies WHERE issue_type = ? AND severity = 'MEDIUM'",
+        (issue_type,),
     ).fetchone()
 
     if policy is None:
         policy = conn.execute(
-            "SELECT * FROM policies WHERE issue_type = 'missing_item'"
+            "SELECT * FROM policies WHERE issue_type = 'missing_item' AND severity = 'MEDIUM'"
         ).fetchone()
 
     # Cap the amount at policy maximum
-    max_comp = policy["max_auto_compensation"] if policy else 100.0
+    max_comp = policy["max_compensation_abs"] if policy else 100.0
     if amount <= 0:
         conn.close()
         return {

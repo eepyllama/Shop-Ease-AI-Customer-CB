@@ -1,40 +1,82 @@
 """
-LangGraph three-node pipeline: Intake → Adjudication → Action
+LangGraph pipeline — revised architecture.
 
-[intake_node]
-    ↓ (has order_id?)
-    ├── NO  → [request_info_node] → END
-    └── YES → [adjudication_node]
-                    ↓
-              [action_node] → END
+Graph entry: escalation_check (runs EVERY turn first)
 
-Each node is a pure function on AgentState.
-Token cost per turn is logged to stdout when DEBUG=True in .env.
+Full routing:
+  escalation_check
+    → acknowledge_node       (hard stop — session already escalated or allergen)
+    → confirm_node           (pending_offer exists — customer responding to an offer)
+    → intake_node            (normal path)
+
+  intake_node
+    → request_info_node      (no order_id)
+    → adjudication_node      (has order_id)
+
+  adjudication_node
+    → escalate_node          (resolution_type == "escalate" OR allergen_safety OR human_required)
+    → offer_node             (all other resolution types — store as pending_offer, END)
+
+  confirm_node
+    → execute_node           (customer accepted)
+    → adjudication_node      (rejected, retry allowed — adjudication picks different option)
+    → escalate_node          (rejected, max rejections hit)
+    → intake_node            (new complaint or correction — resets complaint state)
+
+  execute_node  → END
+  escalate_node → END
+  acknowledge_node → END
+  request_info_node → END
+  offer_node → END
 """
+from __future__ import annotations
+
 import json
-import os
+import logging
+import re
+import uuid
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 from typing_extensions import TypedDict
 
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+logger = logging.getLogger(__name__)
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
-from app.config import GROQ_API_KEY, LLM_MODEL, LLM_PROVIDER, OPENAI_API_KEY
+from app.config import (
+    GROQ_API_KEY, LLM_MODEL, LLM_PROVIDER, OPENAI_API_KEY,
+    ESCALATIONS_LOG, MAX_REJECTION_ATTEMPTS, ALLERGEN_ALWAYS_ESCALATE,
+    POLICY_CONFIDENCE_MIN, DEV_FAIL_LOUD,
+    EVIDENCE_RISK_THRESHOLD,
+)
+from app.escalation import check_escalation
+from app.handoff import generate_handoff_summary, build_escalation_record
 from app.prompts import (
     INTAKE_SYSTEM, INTAKE_USER_TEMPLATE,
     ADJUDICATION_SYSTEM, ADJUDICATION_USER_TEMPLATE,
-    RESPONSE_SYSTEM, RESPONSE_USER_TEMPLATE,
+    OFFER_SYSTEM, OFFER_USER_TEMPLATE,
+    CONFIRM_SYSTEM, CONFIRM_USER_TEMPLATE,
+    EXECUTE_RESPONSE_SYSTEM, EXECUTE_USER_TEMPLATE,
     REQUEST_ORDER_ID_RESPONSE,
 )
-from app.rag import get_rag_context
-from app.risk import compute_risk_score, RefundHistory
+from app.rag import get_rag_context_with_confidence
+from app.resolution import (
+    compute_allowed_options, compute_compensation,
+    validate_resolution, requires_human_approval,
+)
+from app.resolution_matrix import (
+    get_options, get_options_after_dissatisfaction, compute_option_amount,
+)
+from app.risk import compute_risk_score
+from app.severity import classify_severity, extract_intake_context
 from app.tools import (
     get_order_details, get_refund_history,
     set_refund_status, set_partial_refund_status,
     set_humancheck_status, log_escalation,
-    send_voucher_email,
+    send_voucher_email, _conn,
 )
 
 
@@ -43,37 +85,79 @@ from app.tools import (
 class AgentState(TypedDict):
     session_id: str
     messages: Annotated[list[BaseMessage], add_messages]
+    # Order / customer
     order_id: Optional[str]
     customer_id: Optional[str]
     customer_name: Optional[str]
     customer_email: Optional[str]
+    # Complaint classification
     complaint_type: Optional[str]
     claim_description: Optional[str]
     order_details: Optional[dict]
+    # Phase 1: expanded intake fields
+    dietary_restriction: Optional[str]
+    allergens_declared: list[str]
+    customer_requested_resolution: Optional[str]
+    # Risk
     risk_score: int
     risk_flags: list[str]
-    decision: Optional[str]
-    refund_amount: Optional[float]
+    # Severity
+    severity: Optional[str]
+    allergen_safety: bool
+    # Escalation state
+    escalated: bool
+    resolution_attempts: int
+    # Offer / confirm loop
+    pending_offer: Optional[dict]
+    offer_history: list[dict]
+    confirm_response: Optional[str]
+    # Resolution output
+    resolution_type: Optional[str]
+    compensation_amount: Optional[float]
     reasoning: Optional[str]
+    # RAG
     rag_context: Optional[str]
+    policy_confidence: float
+    # Correction tracking
+    correction_detected: bool
+    # Multi-issue tracking: unresolved complaints pushed aside by a correction
+    open_issues: list[dict]
+    # Frontend action override (button click bypasses LLM classification)
+    action: Optional[str]                  # "accept" | "select"
+    selected_resolution_type: Optional[str]  # set when action == "select"
+    # Typed dissatisfaction counter for current complaint (resets on new complaint / execution)
+    dissatisfaction_count: int
+    # Photo-evidence verification
+    evidence_required: bool
+    evidence_result: Optional[dict]   # EvidenceResult.to_dict() after upload + check
+    evidence_path: Optional[str]      # thumbnail path for handoff brief
+    # Response
     final_response: Optional[str]
     token_log: list[dict]
 
 
-# ── Pydantic schemas for structured LLM output ───────────────────────────────
+# ── Pydantic output schemas ───────────────────────────────────────────────────
 
 class IntakeOutput(BaseModel):
-    complaint_type: str = Field(description="One of: missing_item, quality_issue, wrong_order, late_delivery, payment_issue, refund_status, other")
-    order_id: Optional[str] = Field(None, description="Order ID if mentioned, else null")
-    claim_description: str = Field(description="One-sentence summary of the complaint")
+    complaint_type: str = Field(description="Complaint category")
+    order_id: Optional[str] = Field(None)
+    claim_description: str = Field(description="≤30-word summary")
     confidence: float = Field(ge=0.0, le=1.0)
+    dietary_restriction: Optional[str] = Field(None)
+    allergens_declared: list[str] = Field(default_factory=list)
+    customer_requested_resolution: Optional[str] = Field(None)
+    is_explicit_human_request: bool = Field(default=False)
 
 
 class AdjudicationOutput(BaseModel):
-    decision: str = Field(description="One of: full_refund, partial_refund, deny, escalate")
-    refund_amount: Optional[float] = Field(None, description="Refund in dollars if partial or full")
-    reasoning: str = Field(description="Internal reasoning, max 100 words")
+    resolution_type: str = Field(description="One value from allowed_resolutions list")
+    reasoning: str = Field(description="Internal reasoning ≤100 words")
     risk_flags: list[str] = Field(default_factory=list)
+
+
+class ConfirmOutput(BaseModel):
+    response_type: str = Field(description="accept | dissatisfied | new_complaint")
+    reason: Optional[str] = Field(None)
 
 
 # ── LLM factory ──────────────────────────────────────────────────────────────
@@ -91,270 +175,282 @@ def _get_llm(structured_output_class=None):
     return llm
 
 
-# ── Node 1: Intake ────────────────────────────────────────────────────────────
+# ── Audit log helper ─────────────────────────────────────────────────────────
 
-def intake_node(state: AgentState) -> dict:
-    """
-    Classify the complaint and extract order_id.
-    Uses structured output for deterministic JSON parsing.
-    """
-    # Get last human message
-    last_human = next(
-        (m for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), None
-    )
-    if not last_human:
-        return {"decision": "need_order_id"}
-
-    user_text = last_human.content
-
-    # If we already have an order_id from a previous turn, keep it
-    existing_order_id = state.get("order_id")
-
+def _log_audit(session_id: str, order_id: Optional[str], customer_id: Optional[str],
+               event_type: str, payload: dict) -> None:
     try:
-        llm = _get_llm(IntakeOutput)
-        from langchain_core.messages import SystemMessage
-        result: IntakeOutput = llm.invoke([
-            SystemMessage(content=INTAKE_SYSTEM),
-            HumanMessage(content=INTAKE_USER_TEMPLATE.format(message=user_text)),
-        ])
-
-        order_id = result.order_id or existing_order_id
-
-        # Retrieve RAG context based on complaint type
-        rag_context = get_rag_context(f"{result.complaint_type}: {result.claim_description}")
-
-        return {
-            "order_id": order_id,
-            "complaint_type": result.complaint_type,
-            "claim_description": result.claim_description,
-            "rag_context": rag_context,
-            "decision": None if order_id else "need_order_id",
-        }
-
-    except Exception as e:
-        # Fallback: try to find ORD-\d+ in text
-        import re
-        match = re.search(r"(ORD-\d+)", user_text, re.IGNORECASE)
-        order_id = match.group(1).upper() if match else existing_order_id
-        return {
-            "order_id": order_id,
-            "complaint_type": "other",
-            "claim_description": user_text[:100],
-            "rag_context": "",
-            "decision": None if order_id else "need_order_id",
-        }
+        with _conn() as conn:
+            conn.execute(
+                "INSERT INTO audit_log (log_id, session_id, order_id, customer_id, event_type, payload, created_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    str(uuid.uuid4()),
+                    session_id,
+                    order_id,
+                    customer_id,
+                    event_type,
+                    json.dumps(payload),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+    except Exception:
+        pass  # audit failures must never break the chat flow
 
 
-# ── Node 2: Adjudication ──────────────────────────────────────────────────────
+# ── Order context filter ──────────────────────────────────────────────────────
+# Maps complaint_type → the order fields shown to the adjudication LLM.
+# Prevents unrelated attributes (e.g. delivery timing when the complaint is
+# dietary_mismatch) from contaminating the LLM's reasoning.
+_COMPLAINT_ORDER_FIELDS: dict[str, set] = {
+    "late_delivery":      {"order_id", "status", "estimated_delivery_min",
+                           "actual_delivery_min", "total"},
+    "missing_item":       {"order_id", "status", "items", "total"},
+    "quality_issue":      {"order_id", "status", "items", "total"},
+    "wrong_order":        {"order_id", "status", "items", "total"},
+    "dietary_mismatch":   {"order_id", "status", "items", "total"},
+    "allergen_violation": {"order_id", "status", "items", "total"},
+    "freebie_missing":    {"order_id", "status", "items", "total"},
+    "payment_issue":      {"order_id", "status", "total"},
+    "refund_status":      {"order_id", "status", "refund_amount", "total"},
+}
 
-def adjudication_node(state: AgentState) -> dict:
+
+def _filter_order_context(order: dict, complaint_type: str) -> dict:
+    """Return only order fields relevant to the complaint type.
+
+    This is the primary guard against the LLM seeing — and reasoning about —
+    order facts unrelated to the customer's actual complaint (e.g., a 95-min
+    delivery delay when the complaint is about a dietary mismatch).
     """
-    Core reasoning node: look up order, score risk, call RISE-M prompt.
-    This is where the agent decides: full_refund / partial_refund / deny / escalate.
-    """
-    order_id = state["order_id"]
-    complaint_type = state.get("complaint_type", "other")
-    claim_description = state.get("claim_description", "")
-    rag_context = state.get("rag_context", "")
+    allowed = _COMPLAINT_ORDER_FIELDS.get(complaint_type)
+    if allowed is None:
+        return order  # "other" — show everything
+    return {k: v for k, v in order.items() if k in allowed}
 
-    # 1. Look up order from DB
-    order = get_order_details(order_id)
-    if not order:
-        return {
-            "order_details": None,
-            "decision": "escalate",
-            "reasoning": f"Order {order_id} not found in system.",
-            "risk_score": 0,
-            "risk_flags": ["Order not found"],
-            "refund_amount": None,
-            "customer_id": None,
-            "customer_name": "Customer",
-            "customer_email": None,
-        }
 
-    customer_id = order.get("customer_id", "")
-    customer_name = order.get("customer_name", "Customer")
-    customer_email = order.get("email", "")
+# ── Correction detection ──────────────────────────────────────────────────────
+_CORRECTION_RE = re.compile(
+    r"\b(its not|it.?s not|it is not"
+    r"|not (the|my|a|an) (issue|problem|complaint|case)"
+    r"|wrong issue|wrong (problem|complaint)"
+    r"|not about (the|a|an)?"
+    r"|you (mis|got|have the wrong)"
+    r"|never said|didn.?t say|i said|i never"
+    r"|actual (issue|problem|complaint)"
+    r"|the (real|actual|true) (issue|problem|complaint)"
+    r"|misunderstood|not what i said|not what i complained)\b",
+    re.IGNORECASE,
+)
 
-    # 2. Get refund history
-    history = get_refund_history(customer_id)
 
-    # Mark same_issue_repeated if this complaint type was used before
-    history.same_issue_repeated = complaint_type in history.last_issues
+def _is_correction(text: str) -> bool:
+    return bool(_CORRECTION_RE.search(text))
 
-    # 3. Estimate claim amount (full order value as proxy if unknown)
-    order_total = float(order.get("total", 0))
-    claim_amount = order_total  # worst case — adjudication may narrow it
 
-    # 4. Risk scoring
-    risk_score, risk_flags = compute_risk_score(history, claim_amount, order_total)
+# ── Resolution label helper ───────────────────────────────────────────────────
 
-    # 5. Hard escalation triggers (before LLM call — cheap to evaluate)
-    if order.get("status") == "refund":
-        return {
-            "order_details": order,
-            "customer_id": customer_id,
-            "customer_name": customer_name,
-            "customer_email": customer_email,
-            "decision": "escalate",
-            "reasoning": "Order has already been refunded. Possible duplicate claim.",
-            "risk_score": risk_score,
-            "risk_flags": risk_flags + ["Order already refunded"],
-            "refund_amount": None,
-        }
+_RESOLUTION_LABELS = {
+    "full_refund":       "Full Refund",
+    "partial_refund":    "Partial Refund",
+    "coupon":            "Voucher / Coupon",
+    "store_credit":      "Store Credit",
+    "replacement":       "Replacement Order",
+    "priority_handling": "Priority Handling",
+    "apology":           "Apology",
+    "explanation":       "Explanation",
+    "escalate":          "Talk to a Human Agent",
+}
 
-    if order_total > 100:
-        risk_flags.append(f"High-value order: ${order_total:.2f}")
 
-    # 6. RISE-M adjudication LLM call
+def _resolution_label(rt: str) -> str:
+    return _RESOLUTION_LABELS.get(rt, rt.replace("_", " ").title())
+
+
+# Complaint types that require photo evidence when HIGH or risk_score > threshold
+_EVIDENCE_REQUIRED_TYPES = frozenset({"wrong_order", "quality_issue", "dietary_mismatch", "damaged"})
+
+# Severity tier ordering (high → low) for "cap one tier lower" rule
+_SEVERITY_TIERS = ("HIGH", "MEDIUM", "LOW")
+
+
+def _lower_severity(s: str) -> str:
+    """Return the next lower severity tier, or LOW if already at the bottom."""
     try:
-        llm = _get_llm(AdjudicationOutput)
-        from langchain_core.messages import SystemMessage
-
-        user_prompt = ADJUDICATION_USER_TEMPLATE.format(
-            complaint_type=complaint_type,
-            claim_description=claim_description,
-            customer_name=customer_name,
-            customer_id=customer_id,
-            order_details=json.dumps(order, indent=2),
-            count_7d=history.count_last_7_days,
-            count_30d=history.count_last_30_days,
-            lifetime=history.total_lifetime,
-            last_issues=", ".join(history.last_issues) or "none",
-            risk_score=risk_score,
-            risk_flags=", ".join(risk_flags) or "none",
-            policy_context=rag_context or "No specific policy retrieved.",
-        )
-
-        result: AdjudicationOutput = llm.invoke([
-            SystemMessage(content=ADJUDICATION_SYSTEM),
-            HumanMessage(content=user_prompt),
-        ])
-
-        # Merge LLM risk flags with our computed ones
-        all_flags = list(set(risk_flags + result.risk_flags))
-
-        return {
-            "order_details": order,
-            "customer_id": customer_id,
-            "customer_name": customer_name,
-            "customer_email": customer_email,
-            "decision": result.decision,
-            "refund_amount": result.refund_amount,
-            "reasoning": result.reasoning,
-            "risk_score": risk_score,
-            "risk_flags": all_flags,
-        }
-
-    except Exception as e:
-        # On LLM failure, escalate rather than guess
-        return {
-            "order_details": order,
-            "customer_id": customer_id,
-            "customer_name": customer_name,
-            "customer_email": customer_email,
-            "decision": "escalate",
-            "reasoning": f"Adjudication failed: {e}. Escalating for safety.",
-            "risk_score": risk_score,
-            "risk_flags": risk_flags + ["LLM adjudication error"],
-            "refund_amount": None,
-        }
+        idx = _SEVERITY_TIERS.index(s)
+        return _SEVERITY_TIERS[min(idx + 1, len(_SEVERITY_TIERS) - 1)]
+    except ValueError:
+        return "LOW"
 
 
-# ── Node 3: Action ────────────────────────────────────────────────────────────
+# ── Node: escalation_check ────────────────────────────────────────────────────
 
-def action_node(state: AgentState) -> dict:
-    """
-    Execute the decision and generate a customer-facing response.
-    Writes to DB, logs escalations, sends vouchers.
-    """
-    decision = state.get("decision")
-    order_id = state.get("order_id", "")
-    refund_amount = state.get("refund_amount")
-    reasoning = state.get("reasoning", "")
-    customer_name = state.get("customer_name", "Customer")
-    customer_email = state.get("customer_email", "")
-    claim_description = state.get("claim_description", "")
-    order_details = state.get("order_details") or {}
-    risk_score = state.get("risk_score", 0)
-    risk_flags = state.get("risk_flags", [])
-    session_id = state.get("session_id", "")
-
-    # Execute the decision
-    if decision == "full_refund":
-        set_refund_status(order_id)
-        refund_amount = refund_amount or float(order_details.get("total", 0))
-
-    elif decision == "partial_refund" and refund_amount:
-        set_partial_refund_status(order_id, refund_amount)
-
-    elif decision == "escalate":
-        set_humancheck_status(order_id)
-        # Build conversation log for handoff record
-        conversation = [
-            {"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content}
-            for m in state.get("messages", [])
-        ]
-        log_escalation(
-            session_id=session_id,
-            order_id=order_id,
-            reason=reasoning,
-            conversation=conversation,
-            order_details=order_details,
-            risk_score=risk_score,
-            risk_flags=risk_flags,
-        )
-
-    elif decision == "deny":
-        pass  # No DB change needed
-
-    # Generate customer-facing response via LLM
-    try:
-        llm = _get_llm()
-        from langchain_core.messages import SystemMessage
-
-        amt_display = f"${refund_amount:.2f}" if refund_amount is not None else "N/A"
-        user_prompt = RESPONSE_USER_TEMPLATE.format(
-            customer_name=customer_name,
-            decision=decision,
-            refund_amount=amt_display,
-            order_id=order_id,
-            reasoning=reasoning or "",
-            claim_description=claim_description or "",
-        )
-
-        response_msg = llm.invoke([
-            SystemMessage(content=RESPONSE_SYSTEM),
-            HumanMessage(content=user_prompt),
-        ])
-        final_response = response_msg.content
-
-    except Exception as llm_err:
-        # Fallback responses — evaluated lazily to avoid NoneType format errors
-        amt_str = f"${refund_amount:.2f}" if refund_amount is not None else "the applicable amount"
-        if decision == "full_refund":
-            final_response = f"I'm sorry about the issue with your order {order_id}. A full refund has been processed and will appear in 3–5 business days."
-        elif decision == "partial_refund":
-            final_response = f"I've processed a partial refund of {amt_str} for your order {order_id}. It will appear in 3–5 business days."
-        elif decision == "deny":
-            final_response = f"After reviewing your order {order_id}, we were unable to approve this claim. {reasoning or 'Please contact support for details.'}"
-        elif decision == "escalate":
-            final_response = f"I've escalated your case for {order_id} to our review team. They'll follow up with you within 24 hours."
-        elif decision == "need_order_id":
-            final_response = REQUEST_ORDER_ID_RESPONSE
-        else:
-            final_response = "I'm reviewing your case and will get back to you shortly."
-        # Surface API key / auth errors clearly for the developer
-        if "invalid_api_key" in str(llm_err).lower() or "authentication" in str(llm_err).lower() or "401" in str(llm_err):
-            final_response = "⚠️ AI service is unavailable (invalid API key). Please check your GROQ_API_KEY in .env."
-
+def escalation_check_node(state: AgentState) -> dict:
+    result = check_escalation(state)
     return {
-        "final_response": final_response,
-        "messages": [AIMessage(content=final_response)],
+        "confirm_response": None,  # reset each turn
+        "_escalation_check": result,
     }
 
 
-# ── Need-info node (short-circuit when no order ID) ──────────────────────────
+def route_after_escalation_check(state: AgentState) -> str:
+    result = state.get("_escalation_check", {})
+    if result.get("should_escalate") and result.get("is_hard_stop"):
+        return "acknowledge"
+    if state.get("pending_offer") and not result.get("should_escalate"):
+        return "confirm"
+    return "intake"
+
+
+# ── Node: acknowledge ─────────────────────────────────────────────────────────
+
+def acknowledge_node(state: AgentState) -> dict:
+    """Hard-stop path: session already escalated or allergen safety. Acknowledge only."""
+    esc = state.get("_escalation_check", {})
+    esc_type = esc.get("escalation_type", "default")
+
+    from app.handoff import CUSTOMER_ESCALATION_MESSAGES
+    template = CUSTOMER_ESCALATION_MESSAGES.get(esc_type, CUSTOMER_ESCALATION_MESSAGES["default"])
+    order_id = state.get("order_id") or "N/A"
+    customer_name = state.get("customer_name") or "Customer"
+    msg = template.format(order_id=order_id, customer_name=customer_name)
+
+    if esc_type == "allergen" and not state.get("escalated"):
+        _do_escalation_db_writes(state, esc.get("reason", "Allergen safety"), esc_type)
+
+    return {
+        "final_response": msg,
+        "messages": [AIMessage(content=msg)],
+        "escalated": True,
+    }
+
+
+# ── Node: intake ──────────────────────────────────────────────────────────────
+
+def intake_node(state: AgentState) -> dict:
+    all_messages = state["messages"]
+    last_human = next(
+        (m for m in reversed(all_messages) if isinstance(m, HumanMessage)), None
+    )
+    if not last_human:
+        return {"resolution_type": "need_order_id"}
+
+    user_text = last_human.content
+    existing_order_id = state.get("order_id")
+
+    extracted = extract_intake_context(user_text)
+
+    # Build a short conversation context (last 6 messages) for the LLM
+    recent = [m for m in all_messages if isinstance(m, (HumanMessage, AIMessage))][-6:]
+    context_text = ""
+    for m in recent[:-1]:  # all but the latest
+        role = "Customer" if isinstance(m, HumanMessage) else "Agent"
+        context_text += f"{role}: {m.content}\n"
+    llm_user_content = (
+        f"Conversation context:\n{context_text}\n" if context_text else ""
+    ) + INTAKE_USER_TEMPLATE.format(message=user_text)
+
+    try:
+        if DEV_FAIL_LOUD:
+            llm = _get_llm(IntakeOutput)
+            result: IntakeOutput = llm.invoke([
+                SystemMessage(content=INTAKE_SYSTEM),
+                HumanMessage(content=llm_user_content),
+            ])
+        else:
+            llm = _get_llm(IntakeOutput)
+            result: IntakeOutput = llm.invoke([
+                SystemMessage(content=INTAKE_SYSTEM),
+                HumanMessage(content=llm_user_content),
+            ])
+
+        order_id = result.order_id or existing_order_id
+        rag_context, policy_confidence = get_rag_context_with_confidence(
+            f"{result.complaint_type}: {result.claim_description}"
+        )
+
+        allergens = list(set(
+            (extracted.get("allergens_declared") or []) +
+            (result.allergens_declared or [])
+        ))
+        dietary = extracted.get("dietary_restriction") or result.dietary_restriction
+        is_human_req = result.is_explicit_human_request
+
+        updates = {
+            "order_id": order_id,
+            "complaint_type": result.complaint_type,
+            "claim_description": result.claim_description,
+            "dietary_restriction": dietary,
+            "allergens_declared": allergens,
+            "customer_requested_resolution": result.customer_requested_resolution,
+            "rag_context": rag_context,
+            "policy_confidence": policy_confidence,
+            "resolution_type": None if order_id else "need_order_id",
+        }
+
+        if is_human_req:
+            updates["_escalation_check"] = {
+                "should_escalate": True,
+                "is_hard_stop": True,
+                "reason": "Customer explicitly requested a human agent.",
+                "escalation_type": "human_request",
+            }
+
+        return updates
+
+    except Exception as e:
+        logger.exception("intake_node LLM error")
+        if DEV_FAIL_LOUD:
+            raise
+        # Scan all recent human messages for better keyword coverage
+        human_texts = " ".join(
+            m.content for m in all_messages[-12:] if isinstance(m, HumanMessage)
+        )
+        match = re.search(r"(ORD-\d+)", human_texts, re.IGNORECASE)
+        order_id = match.group(1).upper() if match else existing_order_id
+        t = human_texts.lower()
+        if any(k in t for k in ("allerg", "peanut", "nut allerg", "dairy", "gluten")):
+            ct = "allergen_violation"
+        elif any(k in t for k in ("veg", "non-veg", "non veg", "vegetarian", "vegan", "halal", "kosher", "jain")):
+            ct = "dietary_mismatch"
+        elif any(k in t for k in ("late", "delay", "slow", "hours", "took too long")):
+            ct = "late_delivery"
+        elif any(k in t for k in ("missing", "didn't receive", "not in the bag", "wasn't there", "absent")):
+            ct = "missing_item"
+        elif any(k in t for k in ("wrong", "different food", "wrong item", "not what i ordered", "wrong order")):
+            ct = "wrong_order"
+        elif any(k in t for k in ("cold", "quality", "bad food", "stale", "undercooked", "spoiled", "raw")):
+            ct = "quality_issue"
+        elif any(k in t for k in ("free", "freebie", "complimentary", "promo item")):
+            ct = "freebie_missing"
+        elif any(k in t for k in ("payment", "charge", "double charged", "overcharged")):
+            ct = "payment_issue"
+        elif any(k in t for k in ("refund status", "where is my refund", "refund update")):
+            ct = "refund_status"
+        else:
+            ct = "quality_issue"  # broad allowed options as safe default
+        return {
+            "order_id": order_id,
+            "complaint_type": ct,
+            "claim_description": user_text[:100],
+            "allergens_declared": extracted.get("allergens_declared", []),
+            "dietary_restriction": extracted.get("dietary_restriction"),
+            "rag_context": "",
+            "policy_confidence": 0.0,
+            "resolution_type": None if order_id else "need_order_id",
+        }
+
+
+def route_after_intake(state: AgentState) -> str:
+    esc = state.get("_escalation_check", {})
+    if esc.get("should_escalate") and esc.get("is_hard_stop"):
+        return "acknowledge"
+    if state.get("resolution_type") == "need_order_id":
+        return "request_info"
+    return "adjudication"
+
+
+# ── Node: request_info ────────────────────────────────────────────────────────
 
 def request_info_node(state: AgentState) -> dict:
     return {
@@ -363,12 +459,750 @@ def request_info_node(state: AgentState) -> dict:
     }
 
 
-# ── Conditional routing ───────────────────────────────────────────────────────
+# ── Node: adjudication ────────────────────────────────────────────────────────
 
-def route_after_intake(state: AgentState) -> str:
-    if state.get("decision") == "need_order_id":
-        return "request_info"
-    return "adjudication"
+def adjudication_node(state: AgentState) -> dict:
+    order_id          = state["order_id"]
+    complaint_type    = state.get("complaint_type", "other")
+    claim_description = state.get("claim_description", "")
+    rag_context       = state.get("rag_context", "")
+    policy_confidence = state.get("policy_confidence", 0.0)
+    dietary_restrict  = state.get("dietary_restriction")
+    allergens_declared = state.get("allergens_declared", [])
+
+    # Collect previously rejected resolution types so the LLM avoids them
+    offer_history = state.get("offer_history", [])
+    rejected_resolutions = list({
+        o["offer"]["resolution_type"]
+        for o in offer_history
+        if o.get("outcome") == "rejected"
+    })
+
+    # 1. Look up order
+    order = get_order_details(order_id)
+    if not order:
+        return {
+            "order_details": None,
+            "resolution_type": "escalate",
+            "reasoning": f"Order {order_id} not found.",
+            "risk_score": 0,
+            "risk_flags": ["Order not found"],
+            "compensation_amount": None,
+            "customer_id": None,
+            "customer_name": None,
+            "customer_email": None,
+            "severity": "UNKNOWN",
+            "allergen_safety": False,
+            "evidence_required": False,
+        }
+
+    customer_id    = order.get("customer_id", "")
+    customer_name  = order.get("customer_name") or None  # None = unknown, not "Customer"
+    customer_email = order.get("email", "")
+    order_total    = float(order.get("total", 0))
+
+    # 2. Parse items for severity classification
+    items = order.get("items", [])
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            items = []
+
+    # 3. Delivery delay — only computed when the complaint IS late_delivery
+    delay_minutes = 0
+    if complaint_type == "late_delivery":
+        est = order.get("estimated_delivery_min") or 0
+        act = order.get("actual_delivery_min") or 0
+        delay_minutes = max(0, act - est)
+
+    # 4. Severity classification
+    severity, allergen_safety = classify_severity(
+        complaint_type=complaint_type,
+        claim_description=claim_description,
+        items=items,
+        dietary_restriction=dietary_restrict,
+        allergens_declared=allergens_declared,
+        delay_minutes=delay_minutes,
+    )
+    _log_audit(
+        state.get("session_id", ""), order_id, order.get("customer_id"),
+        "SEVERITY",
+        {
+            "complaint_type": complaint_type,
+            "items_count": len(items),
+            "dietary_restriction": dietary_restrict,
+            "allergens_declared": allergens_declared,
+            "delay_minutes": delay_minutes,
+            "severity": severity,
+            "allergen_safety": allergen_safety,
+        },
+    )
+
+    # 5. Refund history + risk scoring
+    history = get_refund_history(customer_id)
+    history.same_issue_repeated = complaint_type in history.last_issues
+    risk_score, risk_flags = compute_risk_score(history, order_total, order_total)
+
+    if order_total > 100:
+        risk_flags.append(f"High-value order: ${order_total:.2f}")
+
+    # 6. Hard pre-emptions before LLM
+    if order.get("status") == "refund":
+        return {
+            "order_details": order, "customer_id": customer_id,
+            "customer_name": customer_name, "customer_email": customer_email,
+            "resolution_type": "escalate",
+            "reasoning": "Order already refunded. Possible duplicate claim.",
+            "risk_score": risk_score, "risk_flags": risk_flags + ["Order already refunded"],
+            "compensation_amount": None, "severity": severity, "allergen_safety": allergen_safety,
+            "evidence_required": False,
+        }
+
+    if allergen_safety and ALLERGEN_ALWAYS_ESCALATE:
+        return {
+            "order_details": order, "customer_id": customer_id,
+            "customer_name": customer_name, "customer_email": customer_email,
+            "resolution_type": "escalate",
+            "reasoning": "Allergen safety: customer declared allergen present in order.",
+            "risk_score": risk_score, "risk_flags": risk_flags + ["Allergen safety flag"],
+            "compensation_amount": order_total, "severity": "CRITICAL", "allergen_safety": True,
+            "evidence_required": False,
+        }
+
+    if risk_score > 50:
+        risk_flags.append(f"Risk score {risk_score} exceeds threshold")
+
+    if policy_confidence < POLICY_CONFIDENCE_MIN:
+        risk_flags.append(f"Low policy confidence: {policy_confidence:.2f}")
+
+    # 7. Resolution matrix: authoritative option list for (complaint_type, severity)
+    matrix_options = get_options(complaint_type, severity)
+
+    # CRITICAL / empty options → immediate escalation (allergen path already handled above)
+    if not matrix_options:
+        return {
+            "order_details": order, "customer_id": customer_id,
+            "customer_name": customer_name, "customer_email": customer_email,
+            "resolution_type": "escalate",
+            "reasoning": f"No options available for {complaint_type}/{severity}.",
+            "risk_score": risk_score, "risk_flags": risk_flags,
+            "compensation_amount": None, "severity": severity, "allergen_safety": allergen_safety,
+            "evidence_required": False,
+        }
+
+    # priority_handling guard: only valid when order is still in-progress
+    order_status = order.get("status", "")
+    if "priority_handling" in matrix_options and order_status not in ("preparing", "out_for_delivery"):
+        matrix_options = [o for o in matrix_options if o != "priority_handling"]
+
+    # The resolution_type stored in state is the first non-escalate option (for routing)
+    non_esc = [o for o in matrix_options if o != "escalate"]
+    resolution_type = non_esc[0] if non_esc else "escalate"
+
+    # 8. Filter order data shown to LLM — only complaint-relevant fields
+    order_context_for_llm = _filter_order_context(order, complaint_type)
+
+    # 9. LLM used for risk analysis only — the matrix provides the resolution
+    try:
+        llm = _get_llm(AdjudicationOutput)
+        user_prompt = ADJUDICATION_USER_TEMPLATE.format(
+            complaint_type=complaint_type,
+            severity=severity,
+            claim_description=claim_description,
+            customer_id=customer_id,
+            order_details=json.dumps(order_context_for_llm, indent=2),
+            dietary_restriction=dietary_restrict or "none",
+            allergens_declared=", ".join(allergens_declared) or "none",
+            count_7d=history.count_last_7_days,
+            count_30d=history.count_last_30_days,
+            lifetime=history.total_lifetime,
+            last_issues=", ".join(history.last_issues) or "none",
+            risk_score=risk_score,
+            risk_flags=", ".join(risk_flags) or "none",
+            policy_context=rag_context or "No specific policy retrieved.",
+            policy_confidence=f"{policy_confidence:.2f}",
+            allowed_resolutions=", ".join(matrix_options),
+            rejected_resolutions=", ".join(rejected_resolutions) or "none",
+            max_compensation="see options",
+            compensation_form="varies",
+        )
+        result: AdjudicationOutput = llm.invoke([
+            SystemMessage(content=ADJUDICATION_SYSTEM),
+            HumanMessage(content=user_prompt),
+        ])
+        all_flags = list(set(risk_flags + result.risk_flags))
+        # LLM resolution_type is IGNORED — matrix is authoritative
+
+    except Exception as e:
+        logger.exception("adjudication_node LLM error — using deterministic matrix options")
+        if DEV_FAIL_LOUD:
+            raise
+        all_flags = risk_flags + [f"LLM adjudication error ({type(e).__name__}) — deterministic"]
+        result = type("R", (), {"reasoning": f"LLM unavailable. Matrix: {matrix_options}.", "risk_flags": []})()
+
+    # Compute amount for the primary (first non-escalate) option only; offer_node handles all
+    final_amount = compute_option_amount(resolution_type, order_total, complaint_type, severity)
+
+    # Determine whether this complaint needs photo evidence before showing options.
+    # Rules: complaint type must be in the evidence set, severity must not be LOW,
+    # and either severity is HIGH or the risk_score exceeds the configured threshold.
+    # Never re-request when evidence was already provided this session.
+    evidence_required = (
+        complaint_type in _EVIDENCE_REQUIRED_TYPES
+        and severity != "LOW"
+        and (severity == "HIGH" or risk_score > EVIDENCE_RISK_THRESHOLD)
+        and not state.get("evidence_result")
+    )
+
+    _log_audit(
+        state.get("session_id", ""), order_id, customer_id,
+        "ADJUDICATION",
+        {"resolution_type": resolution_type, "severity": severity,
+         "risk_score": risk_score, "amount": final_amount,
+         "complaint_type": complaint_type,
+         "evidence_required": evidence_required},
+    )
+
+    return {
+        "order_details": order,
+        "customer_id": customer_id,
+        "customer_name": customer_name,
+        "customer_email": customer_email,
+        "resolution_type": resolution_type,
+        "compensation_amount": final_amount,
+        "reasoning": result.reasoning if hasattr(result, "reasoning") else "",
+        "risk_score": risk_score,
+        "risk_flags": all_flags,
+        "severity": severity,
+        "allergen_safety": allergen_safety,
+        "resolution_attempts": state.get("resolution_attempts", 0) + 1,
+        "evidence_required": evidence_required,
+    }
+
+
+def route_after_adjudication(state: AgentState) -> str:
+    rt = state.get("resolution_type", "")
+    if rt == "escalate" or state.get("allergen_safety") and ALLERGEN_ALWAYS_ESCALATE:
+        return "escalate"
+    return "offer"
+
+
+def route_after_offer(state: AgentState) -> str:
+    """Route to escalate when offer_node detected bad evidence; otherwise END."""
+    if state.get("resolution_type") == "escalate":
+        return "escalate"
+    return END
+
+
+# ── Node: offer ───────────────────────────────────────────────────────────────
+
+def offer_node(state: AgentState) -> dict:
+    """Generate an offer message and present ALL matrix options as buttons."""
+    complaint_type      = state.get("complaint_type", "other")
+    severity            = state.get("severity", "LOW")
+    order_id            = state.get("order_id", "")
+    customer_name       = state.get("customer_name") or ""
+    claim_description   = state.get("claim_description", "")
+    offer_history       = state.get("offer_history", [])
+    correction_detected = state.get("correction_detected", False)
+    dissatisfaction_count = state.get("dissatisfaction_count", 0)
+    order_total         = float((state.get("order_details") or {}).get("total", 0))
+    evidence_required   = state.get("evidence_required", False)
+    evidence_result     = state.get("evidence_result")
+
+    # ── Evidence gate: request upload ─────────────────────────────────────────
+    if evidence_required and not evidence_result:
+        name_prefix = f"Hi {customer_name}, " if customer_name else ""
+        msg = (
+            f"{name_prefix}before I process your claim for order {order_id}, "
+            "I need to verify the issue. Please upload a clear photo showing the problem "
+            "(JPEG, PNG or WebP, max 8 MB). You can also skip and I'll show your options."
+        )
+        pending_offer = {
+            "evidence_required": True,
+            "resolution_type": None,
+            "compensation_amount": None,
+            "order_id": order_id,
+            "customer_id": state.get("customer_id"),
+            "offer_text": msg,
+            "resolution_options": [],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _log_audit(
+            state.get("session_id", ""), order_id, state.get("customer_id"),
+            "EVIDENCE_REQUEST",
+            {"complaint_type": complaint_type, "severity": severity},
+        )
+        return {
+            "final_response": msg,
+            "messages": [AIMessage(content=msg)],
+            "pending_offer": pending_offer,
+        }
+
+    # ── Evidence decision rules ───────────────────────────────────────────────
+    if evidence_required and evidence_result:
+        verdict    = evidence_result.get("verdict", "inconclusive")
+        duplicate  = evidence_result.get("duplicate_image", False)
+        obs        = evidence_result.get("observations", [])
+        thumb_path = evidence_result.get("thumbnail_path", "")
+
+        if verdict == "inconsistent" or duplicate:
+            reason = (
+                "Duplicate image detected across prior claims."
+                if duplicate
+                else f"Evidence inconsistent with claim: {'; '.join(obs[:2])}"
+            )
+            _log_audit(
+                state.get("session_id", ""), order_id, state.get("customer_id"),
+                "EVIDENCE_ESCALATE",
+                {"verdict": verdict, "duplicate": duplicate, "observations": obs,
+                 "thumbnail": thumb_path},
+            )
+            return {
+                "resolution_type": "escalate",
+                "_escalation_check": {
+                    "should_escalate": True,
+                    "is_hard_stop": False,
+                    "escalation_type": "evidence_rejected",
+                    "reason": reason,
+                },
+                "final_response": None,
+                "pending_offer": None,
+                "evidence_path": thumb_path,
+            }
+
+        # Inconclusive (or skipped) → cap severity one tier lower + force escalate button
+        if verdict == "inconclusive":
+            severity = _lower_severity(severity)
+
+    # Build option list — add escalate for MEDIUM/LOW after first dissatisfaction
+    if dissatisfaction_count > 0:
+        all_options = get_options_after_dissatisfaction(complaint_type, severity)
+    else:
+        all_options = get_options(complaint_type, severity)
+
+    # Filter out options already executed this session
+    executed = {
+        o["offer"]["resolution_type"]
+        for o in offer_history
+        if o.get("outcome") == "accepted"
+    }
+    all_options = [o for o in all_options if o not in executed]
+
+    if not all_options:
+        all_options = ["escalate"]
+
+    # Inconclusive evidence → always include escalate button so customer has an exit
+    if evidence_required and evidence_result and evidence_result.get("verdict") == "inconclusive":
+        if "escalate" not in all_options:
+            all_options = all_options + ["escalate"]
+
+    # Compute amount for each option
+    resolution_options = []
+    for opt in all_options:
+        amount = compute_option_amount(opt, order_total, complaint_type, severity)
+        label = _resolution_label(opt)
+        if amount is not None:
+            label = f"{label} (${amount:.2f})"
+        resolution_options.append({"type": opt, "label": label, "amount": amount})
+
+    # Primary resolution for state tracking (first non-escalate)
+    primary_rt = next((o["type"] for o in resolution_options if o["type"] != "escalate"), "escalate")
+    primary_amount = next((o["amount"] for o in resolution_options if o["type"] == primary_rt), None)
+
+    correction_note = (
+        "Customer corrected an earlier misclassification — the previous issue type was wrong."
+        if correction_detected else ""
+    )
+
+    # LLM writes only the intro/apology text — options are shown as buttons
+    try:
+        llm = _get_llm()
+        user_prompt = OFFER_USER_TEMPLATE.format(
+            customer_name=customer_name,
+            complaint_type=complaint_type,
+            severity=severity,
+            order_id=order_id,
+            claim_description=claim_description,
+            correction_note=correction_note,
+        )
+        response = llm.invoke([
+            SystemMessage(content=OFFER_SYSTEM),
+            HumanMessage(content=user_prompt),
+        ])
+        offer_text = response.content
+
+    except Exception as e:
+        logger.exception("offer_node LLM error")
+        if DEV_FAIL_LOUD:
+            raise
+        name_prefix = f"Hi {customer_name}, " if customer_name else ""
+        if severity == "HIGH":
+            offer_text = f"{name_prefix}I sincerely apologise for this serious issue with your order {order_id}. Please choose how you'd like this resolved:"
+        elif severity == "MEDIUM":
+            offer_text = f"{name_prefix}I'm sorry about the problem with your order {order_id}. Here are your options:"
+        else:
+            offer_text = f"{name_prefix}Sorry about that with order {order_id}. Here's what I can offer:"
+        if correction_note:
+            offer_text = f"I apologise for the earlier mix-up. {offer_text}"
+
+    pending_offer = {
+        "resolution_type": primary_rt,
+        "compensation_amount": primary_amount,
+        "order_id": order_id,
+        "customer_id": state.get("customer_id"),
+        "offer_text": offer_text,
+        "resolution_options": resolution_options,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    _log_audit(
+        state.get("session_id", ""), order_id, state.get("customer_id"),
+        "OFFER",
+        {"options": [o["type"] for o in resolution_options], "severity": severity,
+         "dissatisfaction_count": dissatisfaction_count, "complaint_type": complaint_type},
+    )
+
+    return {
+        "final_response": offer_text,
+        "messages": [AIMessage(content=offer_text)],
+        "pending_offer": pending_offer,
+        "resolution_type": primary_rt,
+        "compensation_amount": primary_amount,
+        "correction_detected": False,  # consumed — clear for next turn
+    }
+
+
+# ── Node: confirm ─────────────────────────────────────────────────────────────
+
+def confirm_node(state: AgentState) -> dict:
+    """Detect whether the customer is accepting, rejecting, or correcting/raising a new complaint."""
+    pending_offer = state.get("pending_offer", {}) or {}
+    last_human = next(
+        (m for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), None
+    )
+    user_text = last_human.content if last_human else ""
+
+    # ── 1. Deterministic path: frontend button sent an explicit action ─────────
+    action = state.get("action")
+
+    if action in ("evidence_uploaded", "skip_evidence"):
+        # After photo upload or explicit skip — re-enter offer_node to apply rules
+        return {
+            "confirm_response": "evidence_submitted",
+            "action": None,
+            "selected_resolution_type": None,
+        }
+
+    if action == "accept":
+        return {
+            "confirm_response": "accept",
+            "action": None,
+            "selected_resolution_type": None,
+        }
+
+    if action == "select":
+        sel = state.get("selected_resolution_type") or ""
+        valid_types = [o["type"] for o in (pending_offer.get("resolution_options") or [])]
+
+        if sel == "escalate":
+            # Customer chose "Talk to a Human Agent" from the picker
+            return {
+                "confirm_response": "human_request",
+                "action": None,
+                "selected_resolution_type": None,
+            }
+
+        if sel in valid_types:
+            # Use amount from the resolution_options list (already computed by offer_node)
+            opt_entry = next(
+                (o for o in (pending_offer.get("resolution_options") or []) if o["type"] == sel),
+                None,
+            )
+            new_amount = opt_entry["amount"] if opt_entry else compute_option_amount(
+                sel,
+                float((state.get("order_details") or {}).get("total", 0)),
+                state.get("complaint_type", "other"),
+                state.get("severity", "LOW"),
+            )
+            updated_offer = {**pending_offer, "resolution_type": sel, "compensation_amount": new_amount}
+            return {
+                "confirm_response": "accept",
+                "pending_offer": updated_offer,
+                "resolution_type": sel,
+                "compensation_amount": new_amount,
+                "action": None,
+                "selected_resolution_type": None,
+            }
+        # Invalid selection → treat as dissatisfied
+        return {"confirm_response": "dissatisfied", "action": None, "selected_resolution_type": None}
+
+    # ── 2. LLM-based classification (text message, no button action) ───────────
+    try:
+        llm = _get_llm(ConfirmOutput)
+        result: ConfirmOutput = llm.invoke([
+            SystemMessage(content=CONFIRM_SYSTEM.format(
+                offer_text=pending_offer.get("offer_text", "")
+            )),
+            HumanMessage(content=CONFIRM_USER_TEMPLATE.format(message=user_text)),
+        ])
+        response_type = result.response_type
+    except Exception:
+        logger.exception("confirm_node LLM error — falling back to keyword detection")
+        norm = user_text.lower()
+        if any(w in norm for w in ["yes", "ok", "sure", "proceed", "go ahead", "agree", "accept", "please"]):
+            response_type = "accept"
+        elif any(w in norm for w in ["no", "not enough", "want more", "refuse", "dissatisfied", "unhappy",
+                                      "not happy", "something else", "don't like", "none of these"]):
+            response_type = "dissatisfied"
+        else:
+            response_type = "new_complaint"
+
+    updates: dict = {"confirm_response": response_type}
+
+    if response_type == "dissatisfied":
+        # Increment count; offer_node will add escalate for MEDIUM/LOW on re-offer
+        updates["dissatisfaction_count"] = state.get("dissatisfaction_count", 0) + 1
+        updates["pending_offer"] = None  # clear so offer_node rebuilds with full options
+
+    elif response_type == "new_complaint":
+        is_correction = _is_correction(user_text)
+
+        # Save the unresolved complaint into open_issues before wiping state
+        open_issues = list(state.get("open_issues") or [])
+        if state.get("complaint_type"):
+            open_issues.append({
+                "complaint_type": state.get("complaint_type"),
+                "claim_description": state.get("claim_description"),
+                "severity": state.get("severity"),
+                "order_id": state.get("order_id"),
+                "offer_history": list(state.get("offer_history") or []),
+                "resolution_type": None,
+            })
+        updates["open_issues"] = open_issues
+        updates["pending_offer"] = None
+
+        # Preserve order_id unless the new message explicitly names a different order
+        new_order_match = re.search(r"\b(ORD-\d+)\b", user_text, re.IGNORECASE)
+        if new_order_match:
+            new_oid = new_order_match.group(1).upper()
+            if new_oid != (state.get("order_id") or "").upper():
+                updates["order_id"] = new_oid
+        # (If no different order mentioned, order_id is intentionally kept)
+
+        # Reset all complaint-specific state
+        updates["complaint_type"]        = None
+        updates["claim_description"]     = None
+        updates["severity"]              = None
+        updates["allergen_safety"]       = False
+        updates["resolution_type"]       = None
+        updates["compensation_amount"]   = None
+        updates["dietary_restriction"]   = None
+        updates["allergens_declared"]    = []
+        updates["resolution_attempts"]   = 0
+        updates["offer_history"]         = []
+        updates["dissatisfaction_count"] = 0  # reset for new complaint
+        updates["correction_detected"]   = is_correction
+
+    return updates
+
+
+def route_after_confirm(state: AgentState) -> str:
+    cr = state.get("confirm_response")
+    if cr == "accept":
+        return "execute"
+    elif cr == "human_request":
+        return "escalate"
+    elif cr == "new_complaint":
+        return "intake"
+    elif cr == "dissatisfied":
+        # Second (or more) typed dissatisfaction → escalate
+        if state.get("dissatisfaction_count", 0) >= 2:
+            return "escalate"
+        return "offer"
+    elif cr == "evidence_submitted":
+        return "offer"
+    else:
+        return "offer"
+
+
+# ── Node: execute ─────────────────────────────────────────────────────────────
+
+def execute_node(state: AgentState) -> dict:
+    """Execute the accepted pending_offer — write to DB and generate confirmation."""
+    pending_offer = state.get("pending_offer", {})
+    resolution_type     = pending_offer.get("resolution_type", "apology")
+    compensation_amount = pending_offer.get("compensation_amount")
+    order_id            = pending_offer.get("order_id") or state.get("order_id", "")
+    customer_id         = pending_offer.get("customer_id") or state.get("customer_id")
+    customer_name       = state.get("customer_name") or ""
+    customer_email      = state.get("customer_email", "")
+    form                = pending_offer.get("compensation_form", "none")
+    claim_description   = state.get("claim_description", "")
+
+    # Execute DB actions
+    if resolution_type == "full_refund":
+        set_refund_status(order_id)
+    elif resolution_type == "partial_refund" and compensation_amount:
+        set_partial_refund_status(order_id, compensation_amount)
+    elif resolution_type == "coupon":
+        send_voucher_email(
+            customer_email, customer_name or "Customer",
+            f"${compensation_amount:.2f}" if compensation_amount else "5%",
+            claim_description,
+        )
+    elif resolution_type == "store_credit":
+        set_partial_refund_status(order_id, compensation_amount or 0)
+
+    try:
+        from app.tools import make_action_id
+        with _conn() as conn:
+            action_id = make_action_id(conn)
+            conn.execute(
+                "INSERT INTO support_actions "
+                "(action_id, customer_id, order_id, action_type, amount, reason, status, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    action_id, customer_id, order_id,
+                    resolution_type.upper(),
+                    compensation_amount,
+                    claim_description,
+                    "COMPLETED",
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+    except Exception:
+        pass
+
+    amount_display = "N/A"
+    if compensation_amount is not None:
+        if form == "coupon":
+            amount_display = f"${compensation_amount:.2f} coupon"
+        elif form == "credit":
+            amount_display = f"${compensation_amount:.2f} store credit"
+        else:
+            amount_display = f"${compensation_amount:.2f}"
+
+    try:
+        llm = _get_llm()
+        response = llm.invoke([
+            SystemMessage(content=EXECUTE_RESPONSE_SYSTEM),
+            HumanMessage(content=EXECUTE_USER_TEMPLATE.format(
+                customer_name=customer_name,
+                resolution_type=resolution_type,
+                amount_display=amount_display,
+                order_id=order_id,
+            )),
+        ])
+        final_response = response.content
+    except Exception as e:
+        logger.exception("execute_node LLM error")
+        if DEV_FAIL_LOUD:
+            raise
+        name_prefix = f"Done, {customer_name}! " if customer_name else "Done! "
+        if resolution_type == "full_refund":
+            final_response = f"{name_prefix}Your full refund of {amount_display} for order {order_id} has been processed and will appear in 3–5 business days."
+        elif resolution_type in ("partial_refund", "store_credit"):
+            final_response = f"{name_prefix}A {amount_display} refund for order {order_id} has been processed and will appear in 3–5 business days."
+        elif resolution_type == "coupon":
+            final_response = f"{name_prefix}A {amount_display} voucher has been sent to your email. Thank you for your patience!"
+        else:
+            final_response = f"Your request for order {order_id} has been processed. Thank you!"
+
+    _log_audit(
+        state.get("session_id", ""), order_id, customer_id,
+        "EXECUTION",
+        {"resolution_type": resolution_type, "amount": compensation_amount},
+    )
+
+    offer_history = list(state.get("offer_history", []))
+    offer_history.append({
+        "offer": pending_offer,
+        "outcome": "accepted",
+        "turn": len(state["messages"]),
+    })
+
+    return {
+        "final_response": final_response,
+        "messages": [AIMessage(content=final_response)],
+        "pending_offer": None,
+        "offer_history": offer_history,
+        "dissatisfaction_count": 0,
+    }
+
+
+# ── Node: escalate ────────────────────────────────────────────────────────────
+
+def _do_escalation_db_writes(state: dict, reason: str, esc_type: str) -> None:
+    order_id = state.get("order_id", "")
+    if order_id:
+        set_humancheck_status(order_id)
+    log_escalation(
+        session_id=state.get("session_id", ""),
+        order_id=order_id,
+        reason=reason,
+        conversation=[
+            {"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content}
+            for m in state.get("messages", [])
+        ],
+        order_details=state.get("order_details") or {},
+        risk_score=state.get("risk_score", 0),
+        risk_flags=state.get("risk_flags", []),
+        suggested_action=esc_type,
+    )
+
+
+def escalate_node(state: AgentState) -> dict:
+    esc_check = state.get("_escalation_check", {})
+    esc_type  = esc_check.get("escalation_type", "default")
+    reason    = esc_check.get("reason", state.get("reasoning", "Escalation required."))
+
+    if not esc_type and state.get("allergen_safety"):
+        esc_type = "allergen"
+    elif not esc_type:
+        esc_type = "max_attempts"
+
+    # Only write DB escalation if not already escalated (prevents duplicates)
+    if not state.get("escalated"):
+        _do_escalation_db_writes(state, reason, esc_type)
+
+    try:
+        llm_callable = _get_llm()
+        agent_card, customer_msg = generate_handoff_summary(state, reason, esc_type, llm_callable)
+    except Exception:
+        from app.handoff import CUSTOMER_ESCALATION_MESSAGES
+        template = CUSTOMER_ESCALATION_MESSAGES.get(esc_type, CUSTOMER_ESCALATION_MESSAGES["default"])
+        customer_msg = template.format(
+            order_id=state.get("order_id") or "N/A",
+            customer_name=state.get("customer_name") or "Customer",
+        )
+
+    ev = state.get("evidence_result")
+    evidence_audit = {}
+    if ev:
+        evidence_audit = {
+            "evidence_verdict": ev.get("verdict"),
+            "evidence_confidence": ev.get("confidence"),
+            "evidence_observations": ev.get("observations", []),
+            "evidence_duplicate": ev.get("duplicate_image", False),
+            "evidence_thumbnail": ev.get("thumbnail_path", ""),
+        }
+
+    _log_audit(
+        state.get("session_id", ""), state.get("order_id"), state.get("customer_id"),
+        "ESCALATION",
+        {"escalation_type": esc_type, "reason": reason,
+         "complaint_type": state.get("complaint_type", "unknown"),
+         **evidence_audit},
+    )
+
+    return {
+        "final_response": customer_msg,
+        "messages": [AIMessage(content=customer_msg)],
+        "escalated": True,
+        "pending_offer": None,
+    }
 
 
 # ── Build graph ───────────────────────────────────────────────────────────────
@@ -376,26 +1210,79 @@ def route_after_intake(state: AgentState) -> str:
 def build_graph():
     g = StateGraph(AgentState)
 
-    g.add_node("intake", intake_node)
-    g.add_node("request_info", request_info_node)
-    g.add_node("adjudication", adjudication_node)
-    g.add_node("action", action_node)
+    g.add_node("escalation_check", escalation_check_node)
+    g.add_node("acknowledge",      acknowledge_node)
+    g.add_node("intake",           intake_node)
+    g.add_node("request_info",     request_info_node)
+    g.add_node("adjudication",     adjudication_node)
+    g.add_node("offer",            offer_node)
+    g.add_node("confirm",          confirm_node)
+    g.add_node("execute",          execute_node)
+    g.add_node("escalate",         escalate_node)
 
-    g.set_entry_point("intake")
+    g.set_entry_point("escalation_check")
+
+    g.add_conditional_edges(
+        "escalation_check",
+        route_after_escalation_check,
+        {
+            "acknowledge": "acknowledge",
+            "confirm":     "confirm",
+            "intake":      "intake",
+        },
+    )
+
+    g.add_edge("acknowledge", END)
 
     g.add_conditional_edges(
         "intake",
         route_after_intake,
-        {"request_info": "request_info", "adjudication": "adjudication"},
+        {
+            "acknowledge":  "acknowledge",
+            "request_info": "request_info",
+            "adjudication": "adjudication",
+        },
     )
+
     g.add_edge("request_info", END)
-    g.add_edge("adjudication", "action")
-    g.add_edge("action", END)
+
+    g.add_conditional_edges(
+        "adjudication",
+        route_after_adjudication,
+        {
+            "escalate": "escalate",
+            "offer":    "offer",
+        },
+    )
+
+    g.add_conditional_edges(
+        "offer",
+        route_after_offer,
+        {
+            "escalate": "escalate",
+            END:        END,
+        },
+    )
+
+    g.add_conditional_edges(
+        "confirm",
+        route_after_confirm,
+        {
+            "execute":            "execute",
+            "intake":             "intake",
+            "adjudication":       "adjudication",
+            "escalate":           "escalate",
+            "offer":              "offer",   # dissatisfied / evidence_submitted
+            "evidence_submitted": "offer",   # explicit alias kept for clarity
+        },
+    )
+
+    g.add_edge("execute",  END)
+    g.add_edge("escalate", END)
 
     return g.compile()
 
 
-# Singleton compiled graph
 _graph = None
 
 def get_graph():

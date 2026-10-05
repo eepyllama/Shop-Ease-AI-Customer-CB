@@ -73,8 +73,66 @@ Any of the following must trigger an escalation to human review:
 4. Order details contradict the complaint (e.g., item not in order)
 5. Payment dispute or chargeback mentioned
 6. Order has already been refunded
+7. Allergen safety flag is active (customer declared allergen AND order contained that allergen)
+8. Customer has rejected two or more resolution offers in the same session
+9. AI policy retrieval confidence is below 0.60 — do not guess; escalate
+10. Customer message is near-identical to previous turn (loop detection)
 
-## 10. Agent Behaviour Guidelines
+## 10. Freebie and Promotional Item Policy
+
+- Freebies and promotional add-ons (items given at no charge) are not entitled to a refund.
+- If a paid item is missing, the eligible refund is the price of that paid item only.
+- Claims where the missing item was a freebie are resolved with an apology and a goodwill coupon (max 5% of order value).
+- The distinction between a paid item and a freebie must be verified from order data before any resolution.
+
+## 11. Dietary Mismatch Policy
+
+A dietary mismatch occurs when a customer explicitly states a dietary restriction AND the delivered item violates it.
+
+Conditions required (both must be true):
+1. Customer states restriction: vegetarian, vegan, halal, kosher, jain, or similar.
+2. At least one delivered item has `veg: false` when the restriction is vegetarian/vegan, or does not meet the stated requirement.
+
+Severity: HIGH. Eligible resolutions: replacement (if in-progress) or partial/full refund.
+
+A customer who simply expresses a preference without tying it to the specific complaint does not trigger this policy.
+
+## 12. Allergen Violation Policy
+
+An allergen violation is a food safety event and is handled differently from other complaints.
+
+Conditions required (both must be true):
+1. Customer explicitly declares a specific allergen sensitivity (e.g., "I'm allergic to peanuts").
+2. At least one delivered item contains that allergen in its `allergens` list.
+
+Handling:
+- Severity: CRITICAL. `allergen_safety = True`.
+- Advise the customer NOT to consume the item. State this in the first sentence of the response.
+- Always escalate to human review immediately. Do not offer a same-item replacement.
+- Full refund is applied automatically alongside escalation.
+- This path does NOT route through the standard dietary mismatch branch.
+
+## 13. Repeated Complaints Policy
+
+- If the same customer submits 3 or more complaints in a single session without resolution, escalate.
+- If the customer has rejected 2 or more resolution offers in the same session, escalate.
+- Repeated identical messages (loop detection) trigger immediate escalation.
+- Customers with more than 3 claims in any 30-day period require human review for all subsequent claims in that period.
+
+## 14. Low-Confidence Policy Retrieval
+
+- If the RAG retrieval confidence score is below 0.60, the AI must not invent a policy.
+- In this case: issue an empathetic acknowledgment, apply the safest available resolution from the allowed options, and escalate if the safe option does not fully resolve the issue.
+- Never present a made-up policy as if it were real.
+
+## 15. Priority Handling (In-Progress Orders)
+
+- Priority handling (expedited re-delivery) may only be offered when the order status is `preparing` or `out_for_delivery`.
+- It must NEVER be offered for an order with status `delivered`, `refund`, `partial_refund`, or `cancelled`.
+- When offered, the expected wait time is reduced and the customer is not charged an additional delivery fee.
+- If the original delay exceeds 30 minutes and the order is still in transit, priority handling is the preferred resolution before offering a refund.
+
+## 16. Agent Behaviour Guidelines
 
 - Always address the customer by name when known.
 - Acknowledge the complaint with empathy before requesting details.

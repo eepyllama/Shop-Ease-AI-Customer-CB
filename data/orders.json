@@ -6,9 +6,9 @@
       "customer_name": "Alice Johnson",
       "email": "alice@example.com",
       "items": [
-        {"name": "Chicken Burger", "price": 8.99, "quantity": 1},
-        {"name": "French Fries", "price": 3.49, "quantity": 1},
-        {"name": "Coke", "price": 2.49, "quantity": 1}
+        {"name": "Chicken Burger", "price": 8.99, "quantity": 1, "veg": false, "allergens": ["gluten"]},
+        {"name": "French Fries", "price": 3.49, "quantity": 1, "veg": true, "allergens": ["gluten"]},
+        {"name": "Coke", "price": 2.49, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 14.97,
       "status": "delivered",
@@ -23,9 +23,9 @@
       "customer_name": "Bob Martinez",
       "email": "bob@example.com",
       "items": [
-        {"name": "Family Pizza Combo", "price": 24.99, "quantity": 1},
-        {"name": "Garlic Bread", "price": 4.99, "quantity": 1},
-        {"name": "2L Pepsi", "price": 3.99, "quantity": 1}
+        {"name": "Family Pizza Combo", "price": 24.99, "quantity": 1, "veg": false, "allergens": ["gluten", "dairy"]},
+        {"name": "Garlic Bread", "price": 4.99, "quantity": 1, "veg": true, "allergens": ["gluten", "dairy"]},
+        {"name": "2L Pepsi", "price": 3.99, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 33.97,
       "status": "delivered",
@@ -41,9 +41,9 @@
       "customer_name": "Carol Kim",
       "email": "carol@example.com",
       "items": [
-        {"name": "Ramen Noodles", "price": 12.99, "quantity": 1},
-        {"name": "Gyoza (6pc)", "price": 7.49, "quantity": 1},
-        {"name": "Green Tea", "price": 2.99, "quantity": 1}
+        {"name": "Ramen Noodles", "price": 12.99, "quantity": 1, "veg": false, "allergens": ["gluten", "soy"]},
+        {"name": "Gyoza (6pc)", "price": 7.49, "quantity": 1, "veg": false, "allergens": ["gluten", "soy"]},
+        {"name": "Green Tea", "price": 2.99, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 23.47,
       "status": "delivered",
@@ -59,9 +59,9 @@
       "customer_name": "David Osei",
       "email": "david@example.com",
       "items": [
-        {"name": "California Roll Set", "price": 18.99, "quantity": 1},
-        {"name": "Miso Soup", "price": 3.49, "quantity": 1},
-        {"name": "Edamame", "price": 4.99, "quantity": 1}
+        {"name": "California Roll Set", "price": 18.99, "quantity": 1, "veg": false, "allergens": ["fish", "soy", "gluten"]},
+        {"name": "Miso Soup", "price": 3.49, "quantity": 1, "veg": false, "allergens": ["soy", "fish"]},
+        {"name": "Edamame", "price": 4.99, "quantity": 1, "veg": true, "allergens": ["soy"]}
       ],
       "total": 27.47,
       "status": "delivered",
@@ -77,9 +77,9 @@
       "customer_name": "Emma Patel",
       "email": "emma@example.com",
       "items": [
-        {"name": "Veggie Burger", "price": 9.99, "quantity": 1},
-        {"name": "Sweet Potato Fries", "price": 4.49, "quantity": 1},
-        {"name": "Lemonade", "price": 2.99, "quantity": 1}
+        {"name": "Veggie Burger", "price": 9.99, "quantity": 1, "veg": true, "allergens": ["gluten"]},
+        {"name": "Sweet Potato Fries", "price": 4.49, "quantity": 1, "veg": true, "allergens": []},
+        {"name": "Lemonade", "price": 2.99, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 17.47,
       "status": "delivered",
@@ -95,10 +95,10 @@
       "customer_name": "Frank Nguyen",
       "email": "frank@example.com",
       "items": [
-        {"name": "Premium Ribeye Steak (300g)", "price": 52.00, "quantity": 1},
-        {"name": "Truffle Fries", "price": 14.50, "quantity": 1},
-        {"name": "Lobster Bisque", "price": 18.00, "quantity": 1},
-        {"name": "Sparkling Water", "price": 5.00, "quantity": 1}
+        {"name": "Premium Ribeye Steak (300g)", "price": 52.00, "quantity": 1, "veg": false, "allergens": []},
+        {"name": "Truffle Fries", "price": 14.50, "quantity": 1, "veg": true, "allergens": ["gluten"]},
+        {"name": "Lobster Bisque", "price": 18.00, "quantity": 1, "veg": false, "allergens": ["shellfish", "dairy"]},
+        {"name": "Sparkling Water", "price": 5.00, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 89.50,
       "status": "delivered",
@@ -114,9 +114,9 @@
       "customer_name": "Grace Lee",
       "email": "grace@example.com",
       "items": [
-        {"name": "Chicken Tikka Masala", "price": 13.99, "quantity": 1},
-        {"name": "Garlic Naan x2", "price": 4.98, "quantity": 1},
-        {"name": "Mango Lassi", "price": 3.99, "quantity": 1}
+        {"name": "Chicken Tikka Masala", "price": 13.99, "quantity": 1, "veg": false, "allergens": ["dairy"]},
+        {"name": "Garlic Naan x2", "price": 4.98, "quantity": 1, "veg": true, "allergens": ["gluten", "dairy"]},
+        {"name": "Mango Lassi", "price": 3.99, "quantity": 1, "veg": true, "allergens": ["dairy"]}
       ],
       "total": 22.96,
       "status": "delivered",
@@ -132,9 +132,9 @@
       "customer_name": "Henry Brown",
       "email": "henry@example.com",
       "items": [
-        {"name": "Margherita Pizza", "price": 11.99, "quantity": 1},
-        {"name": "Caesar Salad", "price": 8.99, "quantity": 1},
-        {"name": "Sparkling Water", "price": 2.49, "quantity": 1}
+        {"name": "Margherita Pizza", "price": 11.99, "quantity": 1, "veg": true, "allergens": ["gluten", "dairy"]},
+        {"name": "Caesar Salad", "price": 8.99, "quantity": 1, "veg": false, "allergens": ["fish", "dairy", "gluten"]},
+        {"name": "Sparkling Water", "price": 2.49, "quantity": 1, "veg": true, "allergens": []}
       ],
       "total": 23.47,
       "status": "delivered",
@@ -150,8 +150,8 @@
       "customer_name": "Iris Chen",
       "email": "iris@example.com",
       "items": [
-        {"name": "Family Combo (4 burgers + 4 fries + 4 drinks)", "price": 44.99, "quantity": 1},
-        {"name": "Onion Rings", "price": 5.99, "quantity": 1}
+        {"name": "Family Combo (4 burgers + 4 fries + 4 drinks)", "price": 44.99, "quantity": 1, "veg": false, "allergens": ["gluten"]},
+        {"name": "Onion Rings", "price": 5.99, "quantity": 1, "veg": true, "allergens": ["gluten"]}
       ],
       "total": 50.98,
       "status": "delivered",
@@ -167,9 +167,9 @@
       "customer_name": "Jake Wilson",
       "email": "jake@example.com",
       "items": [
-        {"name": "Pad Thai", "price": 11.99, "quantity": 1},
-        {"name": "Spring Rolls (4pc)", "price": 6.49, "quantity": 1},
-        {"name": "Thai Iced Tea", "price": 3.99, "quantity": 1}
+        {"name": "Pad Thai", "price": 11.99, "quantity": 1, "veg": false, "allergens": ["peanuts", "soy", "shellfish"]},
+        {"name": "Spring Rolls (4pc)", "price": 6.49, "quantity": 1, "veg": false, "allergens": ["gluten", "soy"]},
+        {"name": "Thai Iced Tea", "price": 3.99, "quantity": 1, "veg": true, "allergens": ["dairy"]}
       ],
       "total": 22.47,
       "status": "refund",
@@ -178,6 +178,42 @@
       "payment_method": "card",
       "payment_status": "refunded",
       "_note": "Already refunded — any new claim should be denied / escalated"
+    },
+    {
+      "order_id": "ORD-011",
+      "customer_id": "CUST-011",
+      "customer_name": "Priya Sharma",
+      "email": "priya@example.com",
+      "items": [
+        {"name": "Paneer Butter Masala", "price": 12.99, "quantity": 1, "veg": true, "allergens": ["dairy"]},
+        {"name": "Jeera Rice", "price": 5.49, "quantity": 1, "veg": true, "allergens": []},
+        {"name": "Mint Raita", "price": 3.99, "quantity": 1, "veg": true, "allergens": ["dairy"]}
+      ],
+      "total": 22.47,
+      "status": "preparing",
+      "estimated_delivery_min": 35,
+      "actual_delivery_min": null,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "In-progress vegetarian order (preparing) — tests priority_handling and cancellation; priority_handling must NOT be offered for delivered orders"
+    },
+    {
+      "order_id": "ORD-012",
+      "customer_id": "CUST-012",
+      "customer_name": "Omar Hassan",
+      "email": "omar@example.com",
+      "items": [
+        {"name": "Lamb Seekh Kebab", "price": 15.99, "quantity": 1, "veg": false, "allergens": ["gluten"]},
+        {"name": "Hummus & Pita", "price": 7.49, "quantity": 1, "veg": true, "allergens": ["gluten", "sesame"]},
+        {"name": "Baklava", "price": 8.99, "quantity": 1, "veg": true, "allergens": ["nuts", "gluten", "dairy"]}
+      ],
+      "total": 32.47,
+      "status": "out_for_delivery",
+      "estimated_delivery_min": 40,
+      "actual_delivery_min": null,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "In-progress order (out_for_delivery) with allergen items — tests priority_handling and allergen safety detection"
     }
   ],
   "refund_histories": {
@@ -190,6 +226,8 @@
     "CUST-007": {"count_last_7_days": 4, "count_last_30_days": 6, "total_lifetime": 12, "last_issues": ["missing_item", "quality_issue", "missing_item", "wrong_order"]},
     "CUST-008": {"count_last_7_days": 1, "count_last_30_days": 2, "total_lifetime": 3, "last_issues": ["missing_item"]},
     "CUST-009": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
-    "CUST-010": {"count_last_7_days": 1, "count_last_30_days": 1, "total_lifetime": 1, "last_issues": ["quality_issue"]}
+    "CUST-010": {"count_last_7_days": 1, "count_last_30_days": 1, "total_lifetime": 1, "last_issues": ["quality_issue"]},
+    "CUST-011": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-012": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []}
   }
 }

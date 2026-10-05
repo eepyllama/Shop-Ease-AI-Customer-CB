@@ -57,7 +57,7 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
 #riq-widget{
   position:fixed;bottom:92px;right:24px;
   width:380px;max-width:calc(100vw - 32px);
-  height:560px;max-height:calc(100vh - 120px);
+  height:580px;max-height:calc(100vh - 120px);
   background:#fff;
   border-radius:16px;
   box-shadow:0 20px 60px rgba(0,0,0,.15),0 4px 16px rgba(0,0,0,.08);
@@ -93,6 +93,7 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
 .w-name{font-weight:700;font-size:14px;color:#fff;font-family:'Outfit',sans-serif}
 .w-status{font-size:12px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:5px}
 .w-dot{width:6px;height:6px;background:#4ADE80;border-radius:50%}
+.w-dot.offline{background:#FCA5A5}
 .w-close{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:4px;border-radius:4px;transition:color .15s;font-size:18px;line-height:1}
 .w-close:hover{color:#fff}
 
@@ -118,7 +119,7 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
 .msg-av.usr{background:#E2E8F0;color:var(--fg-2)}
 
 .msg-bub{
-  max-width:78%;
+  max-width:82%;
   padding:10px 13px;
   border-radius:14px;
   font-size:13.5px;
@@ -145,8 +146,91 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
   margin-top:8px;
 }
 .dc-full_refund,.dc-partial_refund{background:#DCFCE7;color:#166534}
+.dc-coupon,.dc-store_credit{background:#EFF6FF;color:#1D4ED8}
+.dc-replacement{background:#F3E8FF;color:#6B21A8}
+.dc-apology,.dc-explanation,.dc-priority_handling{background:#F1F5F9;color:#475569}
 .dc-deny{background:#FEE2E2;color:#991B1B}
 .dc-escalate{background:#FEF9C3;color:#854D0E}
+
+/* ── Offer action buttons ───────────────────────────────────── */
+.offer-actions{
+  display:flex;flex-wrap:wrap;gap:7px;
+  margin-top:10px;
+}
+.offer-btn{
+  padding:6px 14px;border-radius:8px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  border:1.5px solid transparent;
+  transition:all .14s;line-height:1.3;
+}
+.offer-btn.accept{
+  background:var(--brand);color:#fff;
+  border-color:var(--brand);
+}
+.offer-btn.accept:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
+.offer-btn.decline{
+  background:#fff;color:var(--fg-2);
+  border-color:var(--border);
+}
+.offer-btn.decline:hover{border-color:var(--brand);color:var(--brand)}
+.offer-btn:disabled{opacity:.45;cursor:default;pointer-events:none}
+
+/* ── Multi-option picker card ──────────────────────────────── */
+.opt-picker{
+  margin-top:10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+}
+.opt-picker-label{
+  font-size:11px;font-weight:600;color:var(--fg-3);
+  padding:7px 12px 5px;letter-spacing:.04em;
+  border-bottom:1px solid var(--border);
+  background:#F8FAFC;
+}
+.opt-btn{
+  width:100%;text-align:left;
+  padding:9px 12px;
+  font-size:13px;font-weight:500;
+  background:#fff;border:none;cursor:pointer;
+  color:var(--fg);transition:background .12s;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);
+}
+.opt-btn:last-child{border-bottom:none}
+.opt-btn:hover{background:#EFF6FF;color:var(--brand)}
+.opt-btn:disabled{opacity:.45;cursor:default;pointer-events:none;background:#F8FAFC}
+.opt-btn .opt-icon{
+  width:20px;height:20px;border-radius:50%;
+  background:rgba(37,99,235,.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;flex-shrink:0;
+}
+.opt-btn.human{color:#92400E}
+.opt-btn.human .opt-icon{background:rgba(217,119,6,.1)}
+.opt-btn.human:hover{background:#FFFBEB}
+
+/* ── Escalation / reset ────────────────────────────────────── */
+.escalation-card{
+  background:#FFFBEB;border:1px solid #FDE68A;
+  border-radius:10px;padding:12px;margin-top:10px;
+}
+.escalation-card p{font-size:12.5px;color:#92400E;line-height:1.5;margin-bottom:10px}
+.esc-new-btn{
+  width:100%;padding:7px;border-radius:7px;
+  background:#2563EB;color:#fff;border:none;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .14s;
+}
+.esc-new-btn:hover{background:var(--brand-dark)}
+
+/* evidence uploader */
+.evidence-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ev-upload-btn{flex:1 1 140px}
+.ev-status{
+  width:100%;font-size:12px;color:var(--fg-2);
+  padding:4px 0;font-style:italic;
+}
 
 /* typing indicator */
 .typing{display:flex;align-items:center;gap:4px;padding:8px 4px}
@@ -177,6 +261,24 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
   transition:border-color .15s;
 }
 .w-textarea:focus{border-color:var(--brand)}
+#w-cam-input{display:none}
+.w-cam{
+  width:36px;height:36px;flex-shrink:0;
+  background:#F1F5F9;border:1px solid var(--border);border-radius:9px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s;
+  position:relative;user-select:none;
+}
+.w-cam:hover{background:#E2E8F0;border-color:#CBD5E1}
+.w-cam.cam-disabled{opacity:.45;cursor:default;pointer-events:none}
+/* pulsing badge when evidence upload is required */
+.w-cam.ev-needed::after{
+  content:'';position:absolute;top:-3px;right:-3px;
+  width:9px;height:9px;background:#EF4444;border-radius:50%;
+  border:2px solid #fff;
+  animation:ev-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ev-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
 .w-send{
   width:36px;height:36px;flex-shrink:0;
   background:var(--brand);border:none;border-radius:9px;
@@ -263,10 +365,10 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
     </div>
     <p style="font-size:13px;color:var(--fg-2);line-height:1.6">
       The widget below is connected to the local FastAPI server. Try:
-      <br>• "My order ORD-002 is missing the garlic bread"
+      <br>• "My order ORD-005 had veg marked but I got non-veg food"
       <br>• "The food from ORD-003 arrived completely cold"
-      <br>• "I want to report an issue with ORD-007" &nbsp;(triggers escalation)
-      <br>• "ORD-008 — my fries were missing" &nbsp;(claim mismatch → deny)
+      <br>• "I want to report an issue with ORD-002" (missing item)
+      <br>• After an offer: say "No, I'd like a different option" to see alternatives
     </p>
   </div>
 </div>
@@ -290,7 +392,7 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
     <div class="w-avatar">🤖</div>
     <div class="w-info">
       <div class="w-name" id="w-name">ResolveIQ Support</div>
-      <div class="w-status"><span class="w-dot"></span> AI-powered · typically instant</div>
+      <div class="w-status" id="w-status"><span class="w-dot" id="w-dot"></span> <span id="w-status-text">AI-powered · typically instant</span></div>
     </div>
     <button class="w-close" id="w-close-btn" aria-label="Close chat">✕</button>
   </div>
@@ -305,6 +407,17 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
   </div>
 
   <div class="w-in">
+    <input type="file" id="w-cam-input" accept="image/*" capture="environment">
+    <label for="w-cam-input" class="w-cam" id="w-cam"
+           role="button" tabindex="0" aria-label="Attach photo" title="Upload a photo">
+      <!-- camera icon -->
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+           stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8
+                 a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </label>
     <textarea class="w-textarea" id="w-input" rows="1"
       placeholder="Describe your issue…" aria-label="Type your message"></textarea>
     <button class="w-send" id="w-send" aria-label="Send message">
@@ -321,7 +434,7 @@ pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13
 <script>
 // ── Widget configuration ──────────────────────────────────────
 const CONFIG = {
-  apiBase: 'http://localhost:8000',   // Change to your deployment URL
+  apiBase: 'http://localhost:8000',
   companyName: 'ResolveIQ Support',
   botName: 'ResolveIQ',
 };
@@ -330,10 +443,9 @@ const CONFIG = {
 let sessionId = null;
 let isOpen = false;
 let isTyping = false;
-let ws = null;
-
-// Try WebSocket; fall back to REST
-const USE_WS = false; // set to true if your server is running
+let isSessionEscalated = false;   // mirrors backend escalated flag
+let hasPendingOffer = false;       // true while awaiting customer confirm/reject
+let hasPendingEvidence = false;    // true when the bot is waiting for a photo upload
 
 // ── DOM refs ──────────────────────────────────────────────────
 const launcher  = document.getElementById('riq-launcher');
@@ -341,9 +453,13 @@ const widget    = document.getElementById('riq-widget');
 const msgs      = document.getElementById('w-msgs');
 const input     = document.getElementById('w-input');
 const sendBtn   = document.getElementById('w-send');
+const camBtn    = document.getElementById('w-cam');
+const camInput  = document.getElementById('w-cam-input');
 const closeBtn  = document.getElementById('w-close-btn');
 const chips     = document.getElementById('w-chips');
 const wName     = document.getElementById('w-name');
+const wDot      = document.getElementById('w-dot');
+const wStatusTx = document.getElementById('w-status-text');
 
 wName.textContent = CONFIG.companyName;
 
@@ -353,7 +469,9 @@ function toggleWidget() {
   widget.classList.toggle('open', isOpen);
   launcher.classList.toggle('open', isOpen);
   if (isOpen && msgs.children.length === 0) {
-    addMessage('bot', `Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`);
+    addBotMessage(
+      `Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`
+    );
     sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
   }
   if (isOpen) setTimeout(() => input.focus(), 250);
@@ -361,50 +479,77 @@ function toggleWidget() {
 
 launcher.addEventListener('click', toggleWidget);
 closeBtn.addEventListener('click', toggleWidget);
-
-// Close on Escape
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen) toggleWidget(); });
 
 // ── Quick-reply chips ─────────────────────────────────────────
 chips.querySelectorAll('.qc').forEach(chip => {
   chip.addEventListener('click', () => {
-    const msg = chip.dataset.msg;
-    sendMessage(msg);
-    chips.style.display = 'none'; // hide chips after first selection
+    sendMessage(chip.dataset.msg);
+    chips.style.display = 'none';
   });
 });
 
-// ── Message helpers ───────────────────────────────────────────
+// ── Time helper ───────────────────────────────────────────────
 function now() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function addMessage(role, text, decision = null) {
-  const isUser = role === 'user';
+// ── Decision badge labels ─────────────────────────────────────
+const DECISION_LABELS = {
+  full_refund:       '✓ Full refund approved',
+  partial_refund:    '✓ Partial refund approved',
+  coupon:            '✓ Coupon issued',
+  store_credit:      '✓ Store credit applied',
+  replacement:       '✓ Replacement arranged',
+  priority_handling: '⟳ Priority delivery arranged',
+  apology:           '✓ Apology issued',
+  explanation:       'ℹ Explanation provided',
+  deny:              '✗ Claim not approved',
+  escalate:          '⚑ Escalated to team',
+};
+
+// ── Add a bot message bubble ──────────────────────────────────
+function addBotMessage(text, opts = {}) {
+  const { decision, pendingOffer, resolutionOptions, escalated, evidenceRequired } = opts;
   const row = document.createElement('div');
-  row.className = `msg-row ${isUser ? 'user' : 'bot'}`;
+  row.className = 'msg-row bot';
 
   const av = document.createElement('div');
-  av.className = `msg-av ${isUser ? 'usr' : 'bot'}`;
-  av.textContent = isUser ? 'You' : 'AI';
+  av.className = 'msg-av bot';
+  av.textContent = 'AI';
 
   const body = document.createElement('div');
+  body.style.maxWidth = '82%';
+
   const bub = document.createElement('div');
   bub.className = 'msg-bub';
   bub.textContent = text;
 
-  if (decision && decision !== 'need_order_id') {
+  // Decision chip — only shown after execution (when no pending offer remains)
+  if (decision && decision !== 'need_order_id' && !pendingOffer) {
     const chip = document.createElement('div');
-    const labels = {
-      full_refund: '✓ Full refund approved',
-      partial_refund: '✓ Partial refund approved',
-      deny: '✗ Claim not approved',
-      escalate: '⚑ Escalated to team',
-    };
     chip.className = `decision-chip dc-${decision}`;
-    chip.textContent = labels[decision] || decision;
+    chip.textContent = DECISION_LABELS[decision] || decision;
     bub.appendChild(document.createElement('br'));
     bub.appendChild(chip);
+  }
+
+  // Evidence upload UI — takes priority over option picker
+  if (pendingOffer && evidenceRequired && !escalated) {
+    bub.appendChild(buildEvidenceUploader());
+  } else if (pendingOffer && !escalated) {
+    // Normal offer UI
+    const opts2 = resolutionOptions || [];
+    if (opts2.length > 1) {
+      bub.appendChild(buildOptionPicker(opts2));
+    } else {
+      bub.appendChild(buildConfirmButtons());
+    }
+  }
+
+  // Escalation card with "start new chat" link
+  if (escalated) {
+    bub.appendChild(buildEscalationCard());
   }
 
   const time = document.createElement('div');
@@ -413,19 +558,215 @@ function addMessage(role, text, decision = null) {
 
   body.appendChild(bub);
   body.appendChild(time);
-
-  if (isUser) {
-    row.appendChild(body);
-    row.appendChild(av);
-  } else {
-    row.appendChild(av);
-    row.appendChild(body);
-  }
-
+  row.appendChild(av);
+  row.appendChild(body);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
+// ── Add a user message bubble ─────────────────────────────────
+function addUserMessage(text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+
+  const av = document.createElement('div');
+  av.className = 'msg-av usr';
+  av.textContent = 'You';
+
+  const body = document.createElement('div');
+  body.style.maxWidth = '78%';
+
+  const bub = document.createElement('div');
+  bub.className = 'msg-bub';
+  bub.textContent = text;
+
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = now();
+
+  body.appendChild(bub);
+  body.appendChild(time);
+  row.appendChild(body);
+  row.appendChild(av);
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Build simple Accept / Decline buttons ──────────────────────
+function buildConfirmButtons() {
+  const wrap = document.createElement('div');
+  wrap.className = 'offer-actions';
+
+  const yes = document.createElement('button');
+  yes.className = 'offer-btn accept';
+  yes.textContent = 'Yes, proceed';
+  yes.addEventListener('click', () => {
+    disableButtons(wrap);
+    sendMessage('Accepted', { action: 'accept' });
+  });
+
+  const no = document.createElement('button');
+  no.className = 'offer-btn decline';
+  no.textContent = 'No, different option';
+  no.addEventListener('click', () => {
+    disableButtons(wrap);
+    sendMessage("No, I'd like a different option.");
+  });
+
+  wrap.appendChild(yes);
+  wrap.appendChild(no);
+  return wrap;
+}
+
+// ── Build multi-option picker ──────────────────────────────────
+function buildOptionPicker(options) {
+  const card = document.createElement('div');
+  card.className = 'opt-picker';
+
+  const label = document.createElement('div');
+  label.className = 'opt-picker-label';
+  label.textContent = 'Choose an option:';
+  card.appendChild(label);
+
+  const OPTION_ICONS = {
+    full_refund: '💰', partial_refund: '💵', coupon: '🎟',
+    store_credit: '🏷', replacement: '🔄', priority_handling: '⚡',
+    apology: '🤝', explanation: 'ℹ', escalate: '👤',
+  };
+
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn' + (opt.type === 'escalate' ? ' human' : '');
+
+    const icon = document.createElement('span');
+    icon.className = 'opt-icon';
+    icon.textContent = OPTION_ICONS[opt.type] || '→';
+
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode(opt.label));
+
+    btn.addEventListener('click', () => {
+      disableButtons(card, '.opt-btn');
+      if (opt.type === 'escalate') {
+        // Escalate button: use action payload so backend routes deterministically
+        sendMessage('Talk to a human agent', { action: 'select', selected_resolution_type: 'escalate' });
+      } else {
+        // Option selection: structured payload, display label as user bubble
+        sendMessage(`Selected: ${opt.label}`, { action: 'select', selected_resolution_type: opt.type });
+      }
+    });
+
+    card.appendChild(btn);
+  });
+
+  return card;
+}
+
+// ── Build evidence upload widget ──────────────────────────────
+function buildEvidenceUploader() {
+  const wrap = document.createElement('div');
+  wrap.className = 'evidence-wrap';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/jpeg,image/png,image/webp';
+  fileInput.capture = 'environment';
+  fileInput.style.display = 'none';
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'offer-btn accept ev-upload-btn';
+  uploadBtn.textContent = '📷 Upload Photo';
+
+  const skipBtn = document.createElement('button');
+  skipBtn.className = 'offer-btn decline';
+  skipBtn.textContent = 'Skip — show my options';
+
+  const status = document.createElement('div');
+  status.className = 'ev-status';
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    disableButtons(wrap, '.offer-btn');
+    status.textContent = 'Uploading…';
+    wrap.appendChild(status);
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const resp = await fetch(
+        `${CONFIG.apiBase}/api/session/${sessionId}/evidence`,
+        { method: 'POST', body: form }
+      );
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        status.textContent = `Upload failed: ${err.detail || resp.status}`;
+        disableButtons(wrap, '.offer-btn'); // keep disabled
+        return;
+      }
+      const ev = await resp.json();
+      status.textContent = `Photo received (${ev.verdict}).`;
+      // Trigger next graph turn with evidence_uploaded action
+      sendMessage('Photo uploaded.', { action: 'evidence_uploaded' });
+    } catch (e) {
+      status.textContent = 'Upload failed — please try again.';
+    }
+  });
+
+  skipBtn.addEventListener('click', () => {
+    disableButtons(wrap, '.offer-btn');
+    sendMessage('Skip photo upload.', { action: 'skip_evidence' });
+  });
+
+  wrap.appendChild(fileInput);
+  wrap.appendChild(uploadBtn);
+  wrap.appendChild(skipBtn);
+  return wrap;
+}
+
+// ── Build escalation follow-up card ───────────────────────────
+function buildEscalationCard() {
+  const card = document.createElement('div');
+  card.className = 'escalation-card';
+
+  const p = document.createElement('p');
+  p.textContent = 'Your case has been passed to a human agent. They\'ll follow up within 24 hours. You can also start a new conversation for a different issue.';
+  card.appendChild(p);
+
+  const btn = document.createElement('button');
+  btn.className = 'esc-new-btn';
+  btn.textContent = '+ Start new conversation';
+  btn.addEventListener('click', resetSession);
+  card.appendChild(btn);
+
+  return card;
+}
+
+// ── Disable buttons after a choice is made ────────────────────
+function disableButtons(container, selector = '.offer-btn') {
+  container.querySelectorAll(selector).forEach(b => b.disabled = true);
+}
+
+// ── Reset session (new chat) ──────────────────────────────────
+function resetSession() {
+  msgs.innerHTML = '';
+  sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+  isSessionEscalated = false;
+  hasPendingOffer = false;
+  hasPendingEvidence = false;
+  camBtn.classList.remove('ev-needed', 'cam-disabled');
+  chips.style.display = '';
+  input.disabled = false;
+  sendBtn.disabled = false;
+  wDot.className = 'w-dot';
+  wStatusTx.textContent = 'AI-powered · typically instant';
+  addBotMessage(`Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`);
+  input.focus();
+}
+
+// ── Typing indicator ──────────────────────────────────────────
 function showTyping() {
   if (isTyping) return;
   isTyping = true;
@@ -451,7 +792,8 @@ function hideTyping() {
 }
 
 // ── Send message ──────────────────────────────────────────────
-async function sendMessage(text) {
+// actionPayload: optional { action, selected_resolution_type } from buttons
+async function sendMessage(text, actionPayload = null) {
   if (!text.trim()) return;
   text = text.trim();
 
@@ -459,48 +801,78 @@ async function sendMessage(text) {
   input.style.height = 'auto';
   sendBtn.disabled = true;
 
-  addMessage('user', text);
+  addUserMessage(text);
   showTyping();
+  chips.style.display = 'none';
 
   try {
+    const body = { message: text, session_id: sessionId };
+    if (actionPayload) {
+      if (actionPayload.action) body.action = actionPayload.action;
+      if (actionPayload.selected_resolution_type) body.selected_resolution_type = actionPayload.selected_resolution_type;
+    }
     const resp = await fetch(`${CONFIG.apiBase}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    sessionId = data.session_id; // update session ID from server
+    sessionId = data.session_id;
+    isSessionEscalated = data.escalated || false;
+    hasPendingOffer = !!data.pending_offer;
+    hasPendingEvidence = data.evidence_required || false;
+    camBtn.classList.toggle('ev-needed', hasPendingEvidence);
+
     hideTyping();
-    addMessage('bot', data.response, data.decision);
+    addBotMessage(data.response, {
+      decision:         data.decision,
+      pendingOffer:     data.pending_offer,
+      resolutionOptions: data.resolution_options,
+      escalated:        data.escalated,
+      evidenceRequired: data.evidence_required || false,
+    });
+
+    // Update status indicator
+    if (data.escalated) {
+      wDot.className = 'w-dot offline';
+      wStatusTx.textContent = 'Passed to human agent';
+    } else if (data.pending_offer) {
+      wStatusTx.textContent = 'Awaiting your confirmation';
+    } else {
+      wDot.className = 'w-dot';
+      wStatusTx.textContent = 'AI-powered · typically instant';
+    }
 
   } catch (err) {
     hideTyping();
-    // If the server isn't running, show a demo response
-    addMessage('bot', getDemoResponse(text));
+    // Server offline — show deterministic demo response
+    addBotMessage(getDemoResponse(text));
   } finally {
     sendBtn.disabled = false;
     input.focus();
   }
 }
 
-// ── Demo responses (when server is offline) ───────────────────
+// ── Demo responses (server offline fallback) ──────────────────
 function getDemoResponse(text) {
   const t = text.toLowerCase();
-  if (t.includes('missing') || t.includes('ORD-002'.toLowerCase()))
-    return "I can see your order had a missing item. I've verified the order details and processed a partial refund of $4.99 for the garlic bread. This will appear in your account within 3–5 business days.";
-  if (t.includes('cold') || t.includes('quality') || t.includes('ORD-003'.toLowerCase()))
-    return "I'm sorry your food arrived cold, Carol. Based on our quality policy, I've approved a 30% refund of $7.04 for your order. It will be returned to your payment method within 3–5 business days.";
-  if (t.includes('late') || t.includes('ORD-005'.toLowerCase()))
-    return "I sincerely apologise for the delay — your order arrived 95 minutes late, which exceeds our 90-minute threshold. I've approved a full refund of $17.47.";
-  if (t.includes('ORD-007'.toLowerCase()) || t.includes('fraud') || t.includes('suspicious'))
-    return "I've reviewed your case and flagged it for human review. Our team will get back to you within 24 hours with a resolution. Thank you for your patience.";
-  if (t.includes('ORD-008'.toLowerCase()) || t.includes('fries'))
-    return "I've checked your order ORD-008 and can see it contained a Margherita Pizza, Caesar Salad, and Sparkling Water. Unfortunately, French Fries were not part of this order, so we're unable to process a refund for them.";
+  if (t.includes('missing') || t.includes('ord-002'))
+    return "I can see your order had a missing item. I've verified the order details and I'd like to offer you a partial refund of $4.99 for the garlic bread. Would you like me to proceed?";
+  if (t.includes('cold') || t.includes('quality') || t.includes('ord-003'))
+    return "I'm sorry your food arrived cold. Based on our quality policy, I'd like to offer you a 30% refund of $7.04. Would you like me to proceed?";
+  if (t.includes('veg') || t.includes('non-veg') || t.includes('ord-005'))
+    return "I understand you received a non-vegetarian item when you expected vegetarian food. I'd like to offer you a full refund of $17.47 for this dietary mismatch. Would you like me to proceed?";
+  if (t.includes('late') || t.includes('delay'))
+    return "I'm sorry your order arrived late. Depending on how long the delay was, I may be able to offer a refund. Could you share your order ID so I can check the details?";
+  if (t.includes('yes') || t.includes('proceed') || t.includes('ok'))
+    return "Your refund has been processed. You should see it reflected in your account within 3–5 business days. Is there anything else I can help you with?";
+  if (t.includes('no') || t.includes('different') || t.includes('other'))
+    return "No problem. Other options I can offer: a coupon for your next order, store credit, or I can connect you with a human agent. Which would you prefer?";
   if (t.match(/ord-\d+/i))
-    return "I've found your order. Could you describe the issue you experienced? For example: missing item, quality problem, wrong order, or late delivery?";
+    return "I've found your order. Could you describe the issue? For example: missing item, quality problem, wrong order, or late delivery?";
   return "I'd be happy to help! Could you share your order ID? You'll find it in your confirmation email (format: ORD-XXX).";
 }
 
@@ -518,6 +890,50 @@ input.addEventListener('keydown', e => {
 });
 
 sendBtn.addEventListener('click', () => sendMessage(input.value));
+
+// ── Camera / photo upload (label → file input, no JS .click() needed) ────────
+camInput.addEventListener('change', async () => {
+  const file = camInput.files[0];
+  if (!file) return;
+  camInput.value = '';   // reset so the same file triggers change next time
+
+  if (!sessionId) {
+    addBotMessage("Please describe your issue first, then attach a photo to help clarify the problem.");
+    return;
+  }
+
+  camBtn.classList.add('cam-disabled');
+  showTyping();
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+
+    const resp = await fetch(
+      `${CONFIG.apiBase}/api/session/${sessionId}/evidence`,
+      { method: 'POST', body: form }
+    );
+
+    addUserMessage('📷 Photo uploaded');
+    hideTyping();
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      addBotMessage(`I couldn't process that photo: ${err.detail || 'upload failed'}. Please try again.`);
+      return;
+    }
+
+    const ev = await resp.json();
+    // Trigger next graph turn so the bot applies the evidence result
+    await sendMessage('Photo submitted.', { action: 'evidence_uploaded' });
+
+  } catch (e) {
+    hideTyping();
+    addBotMessage('Photo upload failed — please check your connection and try again.');
+  } finally {
+    camBtn.classList.remove('cam-disabled');
+  }
+});
 </script>
 </body>
 </html>

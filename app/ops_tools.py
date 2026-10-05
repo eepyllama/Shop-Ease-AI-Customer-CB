@@ -22,32 +22,43 @@ from app.tools import _conn
 
 def get_support_policy(issue_type: str) -> dict:
     """
-    Return the structured policy thresholds for a given issue type.
-    Used by adjudication to enforce exact delay thresholds and amount caps
-    rather than relying solely on RAG text.
+    Return all severity levels for a given issue type.
+    After the Phase-0 schema change, the policies table uses a
+    (issue_type, severity) composite primary key.
     """
     with _conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM policies WHERE issue_type = ?", (issue_type,)
-        ).fetchone()
+        rows = conn.execute(
+            "SELECT * FROM policies WHERE issue_type = ? ORDER BY severity",
+            (issue_type,),
+        ).fetchall()
 
-    if row is None:
+    if not rows:
         return {
             "success": False,
             "error_code": "POLICY_NOT_FOUND",
             "message": f"No structured policy found for issue type '{issue_type}'.",
         }
 
+    levels = {}
+    for row in rows:
+        try:
+            allowed = json.loads(row["allowed_resolutions"])
+        except Exception:
+            allowed = []
+        levels[row["severity"]] = {
+            "allowed_resolutions":  allowed,
+            "max_compensation_pct": row["max_compensation_pct"],
+            "max_compensation_abs": row["max_compensation_abs"],
+            "compensation_form":    row["compensation_form"],
+            "auto_approve_limit":   row["auto_approve_limit"],
+            "requires_confirm":     bool(row["requires_confirm"]),
+            "policy_version":       row["policy_version"],
+        }
+
     return {
-        "success": True,
-        "issue_type": row["issue_type"],
-        "policy_version": row["policy_version"],
-        "minor_delay_threshold_min": row["minor_delay_threshold_min"],
-        "compensation_threshold_min": row["compensation_threshold_min"],
-        "full_refund_threshold_min": row["full_refund_threshold_min"],
-        "max_auto_compensation": row["max_auto_compensation"],
-        "customer_confirmation_required": bool(row["customer_confirmation_req"]),
-        "cancellation_allowed": bool(row["cancellation_allowed"]),
+        "success":    True,
+        "issue_type": issue_type,
+        "levels":     levels,
     }
 
 
@@ -137,12 +148,16 @@ def resolve_escalation(
     final_status: the order status to write (e.g. 'refund', 'delivered', 'closed')
     Writes an audit record to support_actions.
     """
-    valid_resolutions = {"full_refund", "partial_refund", "deny", "other"}
+    valid_resolutions = {
+        "full_refund", "partial_refund", "coupon", "store_credit",
+        "replacement", "priority_handling", "apology", "explanation",
+        "deny", "other",
+    }
     if resolution not in valid_resolutions:
         return {
             "success": False,
             "error_code": "INVALID_RESOLUTION",
-            "message": f"resolution must be one of: {', '.join(valid_resolutions)}",
+            "message": f"resolution must be one of: {', '.join(sorted(valid_resolutions))}",
         }
 
     with _conn() as conn:

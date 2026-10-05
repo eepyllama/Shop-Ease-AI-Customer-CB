@@ -87,11 +87,46 @@ def get_rag_context(query: str) -> str:
     Retrieve the most relevant policy sections for a complaint query.
     Returns a formatted string ready to be injected into the prompt.
     """
+    context, _ = get_rag_context_with_confidence(query)
+    return context
+
+
+def get_rag_context_with_confidence(query: str) -> tuple[str, float]:
+    """
+    Retrieve the most relevant policy sections and return (context_text, confidence).
+
+    Confidence is normalised from the cosine distance returned by ChromaDB:
+      confidence = max(0, 1 - distance / 1.5)
+    A distance of 0  → confidence 1.0 (perfect match)
+    A distance of 1.5 → confidence 0.0 (no match)
+
+    Returns (context_text, confidence_score).
+    """
     try:
-        retriever = build_retriever()
-        docs = retriever.invoke(query)
-        if not docs:
-            return "No specific policy found. Apply general fairness principles."
-        return "\n\n".join(doc.page_content for doc in docs)
+        embeddings = _build_embeddings()
+        chroma_path = Path(CHROMA_DIR)
+
+        if not chroma_path.exists() or not any(chroma_path.iterdir()):
+            build_retriever()
+
+        vectorstore = Chroma(
+            collection_name="policy-rag",
+            embedding_function=embeddings,
+            persist_directory=str(chroma_path),
+        )
+
+        # similarity_search_with_score returns (Document, distance) tuples
+        results = vectorstore.similarity_search_with_score(query, k=2)
+
+        if not results:
+            return "No specific policy found. Apply general fairness principles.", 0.0
+
+        # Use the best (lowest distance) score for confidence
+        best_distance = min(score for _, score in results)
+        confidence = max(0.0, 1.0 - best_distance / 1.5)
+
+        context = "\n\n".join(doc.page_content for doc, _ in results)
+        return context, round(confidence, 3)
+
     except Exception as e:
-        return f"Policy retrieval unavailable: {e}. Apply general fairness principles."
+        return f"Policy retrieval unavailable: {e}. Apply general fairness principles.", 0.0
