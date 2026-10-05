@@ -1,0 +1,195 @@
+{
+  "orders": [
+    {
+      "order_id": "ORD-001",
+      "customer_id": "CUST-001",
+      "customer_name": "Alice Johnson",
+      "email": "alice@example.com",
+      "items": [
+        {"name": "Chicken Burger", "price": 8.99, "quantity": 1},
+        {"name": "French Fries", "price": 3.49, "quantity": 1},
+        {"name": "Coke", "price": 2.49, "quantity": 1}
+      ],
+      "total": 14.97,
+      "status": "delivered",
+      "estimated_delivery_min": 30,
+      "actual_delivery_min": 35,
+      "payment_method": "card",
+      "payment_status": "paid"
+    },
+    {
+      "order_id": "ORD-002",
+      "customer_id": "CUST-002",
+      "customer_name": "Bob Martinez",
+      "email": "bob@example.com",
+      "items": [
+        {"name": "Family Pizza Combo", "price": 24.99, "quantity": 1},
+        {"name": "Garlic Bread", "price": 4.99, "quantity": 1},
+        {"name": "2L Pepsi", "price": 3.99, "quantity": 1}
+      ],
+      "total": 33.97,
+      "status": "delivered",
+      "estimated_delivery_min": 40,
+      "actual_delivery_min": 42,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Garlic bread missing from delivery bag — valid partial refund case"
+    },
+    {
+      "order_id": "ORD-003",
+      "customer_id": "CUST-003",
+      "customer_name": "Carol Kim",
+      "email": "carol@example.com",
+      "items": [
+        {"name": "Ramen Noodles", "price": 12.99, "quantity": 1},
+        {"name": "Gyoza (6pc)", "price": 7.49, "quantity": 1},
+        {"name": "Green Tea", "price": 2.99, "quantity": 1}
+      ],
+      "total": 23.47,
+      "status": "delivered",
+      "estimated_delivery_min": 35,
+      "actual_delivery_min": 38,
+      "payment_method": "paypal",
+      "payment_status": "paid",
+      "_note": "Quality issue — food arrived cold"
+    },
+    {
+      "order_id": "ORD-004",
+      "customer_id": "CUST-004",
+      "customer_name": "David Osei",
+      "email": "david@example.com",
+      "items": [
+        {"name": "California Roll Set", "price": 18.99, "quantity": 1},
+        {"name": "Miso Soup", "price": 3.49, "quantity": 1},
+        {"name": "Edamame", "price": 4.99, "quantity": 1}
+      ],
+      "total": 27.47,
+      "status": "delivered",
+      "estimated_delivery_min": 45,
+      "actual_delivery_min": 50,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Wrong order — received a burger order instead of sushi"
+    },
+    {
+      "order_id": "ORD-005",
+      "customer_id": "CUST-005",
+      "customer_name": "Emma Patel",
+      "email": "emma@example.com",
+      "items": [
+        {"name": "Veggie Burger", "price": 9.99, "quantity": 1},
+        {"name": "Sweet Potato Fries", "price": 4.49, "quantity": 1},
+        {"name": "Lemonade", "price": 2.99, "quantity": 1}
+      ],
+      "total": 17.47,
+      "status": "delivered",
+      "estimated_delivery_min": 30,
+      "actual_delivery_min": 125,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Very late delivery — 95 min over estimate, qualifies for full refund"
+    },
+    {
+      "order_id": "ORD-006",
+      "customer_id": "CUST-006",
+      "customer_name": "Frank Nguyen",
+      "email": "frank@example.com",
+      "items": [
+        {"name": "Premium Ribeye Steak (300g)", "price": 52.00, "quantity": 1},
+        {"name": "Truffle Fries", "price": 14.50, "quantity": 1},
+        {"name": "Lobster Bisque", "price": 18.00, "quantity": 1},
+        {"name": "Sparkling Water", "price": 5.00, "quantity": 1}
+      ],
+      "total": 89.50,
+      "status": "delivered",
+      "estimated_delivery_min": 50,
+      "actual_delivery_min": 58,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "High-value order — any claim should trigger human review"
+    },
+    {
+      "order_id": "ORD-007",
+      "customer_id": "CUST-007",
+      "customer_name": "Grace Lee",
+      "email": "grace@example.com",
+      "items": [
+        {"name": "Chicken Tikka Masala", "price": 13.99, "quantity": 1},
+        {"name": "Garlic Naan x2", "price": 4.98, "quantity": 1},
+        {"name": "Mango Lassi", "price": 3.99, "quantity": 1}
+      ],
+      "total": 22.96,
+      "status": "delivered",
+      "estimated_delivery_min": 40,
+      "actual_delivery_min": 45,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Customer has 4 refunds in past 7 days — high risk, must escalate"
+    },
+    {
+      "order_id": "ORD-008",
+      "customer_id": "CUST-008",
+      "customer_name": "Henry Brown",
+      "email": "henry@example.com",
+      "items": [
+        {"name": "Margherita Pizza", "price": 11.99, "quantity": 1},
+        {"name": "Caesar Salad", "price": 8.99, "quantity": 1},
+        {"name": "Sparkling Water", "price": 2.49, "quantity": 1}
+      ],
+      "total": 23.47,
+      "status": "delivered",
+      "estimated_delivery_min": 35,
+      "actual_delivery_min": 38,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Claim mismatch — customer claims missing fries but no fries in order; must deny"
+    },
+    {
+      "order_id": "ORD-009",
+      "customer_id": "CUST-009",
+      "customer_name": "Iris Chen",
+      "email": "iris@example.com",
+      "items": [
+        {"name": "Family Combo (4 burgers + 4 fries + 4 drinks)", "price": 44.99, "quantity": 1},
+        {"name": "Onion Rings", "price": 5.99, "quantity": 1}
+      ],
+      "total": 50.98,
+      "status": "delivered",
+      "estimated_delivery_min": 45,
+      "actual_delivery_min": 55,
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "Combo order with missing partial item — partial refund calculation required"
+    },
+    {
+      "order_id": "ORD-010",
+      "customer_id": "CUST-010",
+      "customer_name": "Jake Wilson",
+      "email": "jake@example.com",
+      "items": [
+        {"name": "Pad Thai", "price": 11.99, "quantity": 1},
+        {"name": "Spring Rolls (4pc)", "price": 6.49, "quantity": 1},
+        {"name": "Thai Iced Tea", "price": 3.99, "quantity": 1}
+      ],
+      "total": 22.47,
+      "status": "refund",
+      "estimated_delivery_min": 35,
+      "actual_delivery_min": 40,
+      "payment_method": "card",
+      "payment_status": "refunded",
+      "_note": "Already refunded — any new claim should be denied / escalated"
+    }
+  ],
+  "refund_histories": {
+    "CUST-001": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-002": {"count_last_7_days": 0, "count_last_30_days": 1, "total_lifetime": 2, "last_issues": ["missing_item"]},
+    "CUST-003": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 1, "last_issues": ["quality_issue"]},
+    "CUST-004": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-005": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 1, "last_issues": ["late_delivery"]},
+    "CUST-006": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-007": {"count_last_7_days": 4, "count_last_30_days": 6, "total_lifetime": 12, "last_issues": ["missing_item", "quality_issue", "missing_item", "wrong_order"]},
+    "CUST-008": {"count_last_7_days": 1, "count_last_30_days": 2, "total_lifetime": 3, "last_issues": ["missing_item"]},
+    "CUST-009": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-010": {"count_last_7_days": 1, "count_last_30_days": 1, "total_lifetime": 1, "last_issues": ["quality_issue"]}
+  }
+}

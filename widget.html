@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ResolveIQ — Embeddable Support Widget Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700&display=swap">
+<style>
+/* ── DEMO PAGE ─────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#2563EB;
+  --brand-dark:#1D4ED8;
+  --bg:#F1F5F9;
+  --surface:#fff;
+  --fg:#0F172A;
+  --fg-2:#475569;
+  --fg-3:#94A3B8;
+  --border:#E2E8F0;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
+
+.demo-page{max-width:900px;margin:0 auto;padding:48px 24px 160px}
+.demo-hero{text-align:center;margin-bottom:48px}
+.demo-badge{display:inline-block;background:rgba(37,99,235,.1);color:var(--brand);font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;margin-bottom:16px}
+.demo-title{font-family:'Outfit',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.8px;margin-bottom:12px}
+.demo-sub{font-size:16px;color:var(--fg-2);max-width:520px;margin:0 auto;line-height:1.6}
+
+.demo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+.step-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.step-n{width:28px;height:28px;background:rgba(37,99,235,.1);color:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-bottom:12px}
+.step-t{font-weight:600;font-size:14px;margin-bottom:6px}
+.step-d{font-size:13px;color:var(--fg-2);line-height:1.5}
+
+.embed-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+.embed-title{font-weight:600;font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13px;overflow-x:auto;line-height:1.6}
+.keyword{color:#93C5FD} .string{color:#86EFAC} .comment{color:#64748B}
+
+/* ── CHAT WIDGET ──────────────────────────────────────────── */
+#riq-launcher{
+  position:fixed;bottom:24px;right:24px;
+  width:56px;height:56px;
+  background:var(--brand);
+  border-radius:50%;
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(37,99,235,.4);
+  transition:all .2s;
+  z-index:9999;
+}
+#riq-launcher:hover{background:var(--brand-dark);transform:scale(1.05)}
+#riq-launcher svg{transition:all .2s}
+#riq-launcher.open .icon-chat{display:none}
+#riq-launcher.open .icon-close{display:block!important}
+
+#riq-widget{
+  position:fixed;bottom:92px;right:24px;
+  width:380px;max-width:calc(100vw - 32px);
+  height:560px;max-height:calc(100vh - 120px);
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.15),0 4px 16px rgba(0,0,0,.08);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  z-index:9998;
+  transform:scale(.95) translateY(12px);
+  opacity:0;
+  pointer-events:none;
+  transition:all .22s cubic-bezier(.34,1.56,.64,1);
+}
+#riq-widget.open{
+  transform:scale(1) translateY(0);
+  opacity:1;
+  pointer-events:all;
+}
+
+/* widget header */
+.w-hdr{
+  background:var(--brand);
+  padding:16px 18px;
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+}
+.w-avatar{
+  width:36px;height:36px;
+  background:rgba(255,255,255,.2);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.w-info{flex:1;min-width:0}
+.w-name{font-weight:700;font-size:14px;color:#fff;font-family:'Outfit',sans-serif}
+.w-status{font-size:12px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:5px}
+.w-dot{width:6px;height:6px;background:#4ADE80;border-radius:50%}
+.w-close{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:4px;border-radius:4px;transition:color .15s;font-size:18px;line-height:1}
+.w-close:hover{color:#fff}
+
+/* messages */
+.w-msgs{
+  flex:1;overflow-y:auto;
+  padding:16px;
+  display:flex;flex-direction:column;gap:12px;
+  scroll-behavior:smooth;
+}
+.w-msgs::-webkit-scrollbar{width:4px}
+.w-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.msg-row{display:flex;gap:8px;align-items:flex-end}
+.msg-row.user{flex-direction:row-reverse}
+
+.msg-av{
+  width:26px;height:26px;border-radius:50%;
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+}
+.msg-av.bot{background:rgba(37,99,235,.1);color:var(--brand)}
+.msg-av.usr{background:#E2E8F0;color:var(--fg-2)}
+
+.msg-bub{
+  max-width:78%;
+  padding:10px 13px;
+  border-radius:14px;
+  font-size:13.5px;
+  line-height:1.55;
+}
+.msg-row.bot .msg-bub{
+  background:#F1F5F9;
+  color:var(--fg);
+  border-radius:2px 14px 14px 14px;
+}
+.msg-row.user .msg-bub{
+  background:var(--brand);
+  color:#fff;
+  border-radius:14px 2px 14px 14px;
+}
+.msg-time{font-size:10.5px;color:var(--fg-3);margin-top:4px}
+.msg-row.user .msg-time{text-align:right}
+
+/* decision badge inside message */
+.decision-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:99px;
+  font-size:11px;font-weight:700;
+  margin-top:8px;
+}
+.dc-full_refund,.dc-partial_refund{background:#DCFCE7;color:#166534}
+.dc-deny{background:#FEE2E2;color:#991B1B}
+.dc-escalate{background:#FEF9C3;color:#854D0E}
+
+/* typing indicator */
+.typing{display:flex;align-items:center;gap:4px;padding:8px 4px}
+.typing span{
+  width:7px;height:7px;background:var(--fg-3);border-radius:50%;
+  animation:bounce .8s infinite ease-in-out;
+}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+
+/* input area */
+.w-in{
+  padding:12px;
+  border-top:1px solid var(--border);
+  display:flex;gap:8px;align-items:flex-end;
+  flex-shrink:0;
+}
+.w-textarea{
+  flex:1;
+  background:#F8FAFC;border:1px solid var(--border);
+  border-radius:10px;
+  padding:9px 13px;
+  font-size:13.5px;color:var(--fg);
+  font-family:inherit;resize:none;
+  outline:none;line-height:1.45;
+  max-height:100px;overflow-y:auto;
+  transition:border-color .15s;
+}
+.w-textarea:focus{border-color:var(--brand)}
+.w-send{
+  width:36px;height:36px;flex-shrink:0;
+  background:var(--brand);border:none;border-radius:9px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.w-send:hover{background:var(--brand-dark)}
+.w-send:disabled{opacity:.5;cursor:default}
+
+/* quick-reply chips */
+.quick-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
+.qc{
+  background:#EFF6FF;color:var(--brand);
+  border:1px solid rgba(37,99,235,.15);
+  border-radius:99px;padding:5px 12px;
+  font-size:12px;font-weight:500;cursor:pointer;
+  transition:all .12s;white-space:nowrap;
+}
+.qc:hover{background:var(--brand);color:#fff}
+
+/* powered-by footer */
+.w-foot{
+  padding:6px 14px 10px;text-align:center;
+  font-size:11px;color:var(--fg-3);
+  flex-shrink:0;
+}
+.w-foot a{color:var(--fg-3);text-decoration:none}
+
+/* ── responsive ── */
+@media(max-width:480px){
+  #riq-widget{width:calc(100vw - 16px);right:8px;bottom:80px;height:calc(100vh - 104px)}
+  .demo-steps{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── DEMO PAGE CONTENT ───────────────────────────────────────────────────── -->
+<div class="demo-page">
+  <div class="demo-hero">
+    <div class="demo-badge">ResolveIQ · Embeddable Chat Widget</div>
+    <h1 class="demo-title">Customer support<br>that actually resolves.</h1>
+    <p class="demo-sub">Drop one script tag into your website. The AI handles missing items, quality issues, wrong orders, and late deliveries — and escalates the ones it shouldn't touch.</p>
+  </div>
+
+  <div class="demo-steps">
+    <div class="step-card">
+      <div class="step-n">1</div>
+      <div class="step-t">Intake Classification</div>
+      <div class="step-d">Complaint type and order ID extracted via structured LLM output. No regex heuristics.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-n">2</div>
+      <div class="step-t">RISE-M Adjudication</div>
+      <div class="step-d">Policy RAG + refund history + risk score feed a structured prompt. The agent decides: refund, partial, deny, or escalate.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-n">3</div>
+      <div class="step-t">Auditable Action</div>
+      <div class="step-d">Every decision is logged. Escalations write a full handoff record with conversation history and risk flags.</div>
+    </div>
+  </div>
+
+  <div class="embed-box">
+    <div class="embed-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Drop into any website
+    </div>
+<pre><span class="comment">&lt;!-- 1. Add to your &lt;head&gt; --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"https://your-deployment.com/widget.js"</span>
+        <span class="string">data-api</span>=<span class="string">"https://your-deployment.com/api"</span>
+        <span class="string">data-company</span>=<span class="string">"Acme Foods"</span>
+        <span class="string">data-color</span>=<span class="string">"#2563EB"</span>
+        <span class="string">async</span><span class="keyword">&gt;&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- That's it. The chat button appears bottom-right. --&gt;</span>
+<span class="comment">&lt;!-- POST /api/chat   GET /api/session/:id   WS /ws/:id --&gt;</span></pre>
+  </div>
+
+  <div class="embed-box">
+    <div class="embed-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Try it live — click the chat button ↘
+    </div>
+    <p style="font-size:13px;color:var(--fg-2);line-height:1.6">
+      The widget below is connected to the local FastAPI server. Try:
+      <br>• "My order ORD-002 is missing the garlic bread"
+      <br>• "The food from ORD-003 arrived completely cold"
+      <br>• "I want to report an issue with ORD-007" &nbsp;(triggers escalation)
+      <br>• "ORD-008 — my fries were missing" &nbsp;(claim mismatch → deny)
+    </p>
+  </div>
+</div>
+
+
+<!-- ── CHAT WIDGET ──────────────────────────────────────────────────────────── -->
+
+<!-- Launcher button -->
+<button id="riq-launcher" aria-label="Open support chat">
+  <svg class="icon-chat" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+  </svg>
+  <svg class="icon-close" style="display:none" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+</button>
+
+<!-- Chat panel -->
+<div id="riq-widget" role="dialog" aria-label="Customer support chat">
+  <div class="w-hdr">
+    <div class="w-avatar">🤖</div>
+    <div class="w-info">
+      <div class="w-name" id="w-name">ResolveIQ Support</div>
+      <div class="w-status"><span class="w-dot"></span> AI-powered · typically instant</div>
+    </div>
+    <button class="w-close" id="w-close-btn" aria-label="Close chat">✕</button>
+  </div>
+
+  <div class="w-msgs" id="w-msgs"></div>
+
+  <div class="quick-chips" id="w-chips">
+    <div class="qc" data-msg="I have a missing item in my order">Missing item</div>
+    <div class="qc" data-msg="My food quality was very poor">Quality issue</div>
+    <div class="qc" data-msg="I received the wrong order">Wrong order</div>
+    <div class="qc" data-msg="My order arrived very late">Late delivery</div>
+  </div>
+
+  <div class="w-in">
+    <textarea class="w-textarea" id="w-input" rows="1"
+      placeholder="Describe your issue…" aria-label="Type your message"></textarea>
+    <button class="w-send" id="w-send" aria-label="Send message">
+      <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="w-foot">Powered by <a href="#">ResolveIQ</a></div>
+</div>
+
+
+<script>
+// ── Widget configuration ──────────────────────────────────────
+const CONFIG = {
+  apiBase: 'http://localhost:8000',   // Change to your deployment URL
+  companyName: 'ResolveIQ Support',
+  botName: 'ResolveIQ',
+};
+
+// ── State ─────────────────────────────────────────────────────
+let sessionId = null;
+let isOpen = false;
+let isTyping = false;
+let ws = null;
+
+// Try WebSocket; fall back to REST
+const USE_WS = false; // set to true if your server is running
+
+// ── DOM refs ──────────────────────────────────────────────────
+const launcher  = document.getElementById('riq-launcher');
+const widget    = document.getElementById('riq-widget');
+const msgs      = document.getElementById('w-msgs');
+const input     = document.getElementById('w-input');
+const sendBtn   = document.getElementById('w-send');
+const closeBtn  = document.getElementById('w-close-btn');
+const chips     = document.getElementById('w-chips');
+const wName     = document.getElementById('w-name');
+
+wName.textContent = CONFIG.companyName;
+
+// ── Open / close ──────────────────────────────────────────────
+function toggleWidget() {
+  isOpen = !isOpen;
+  widget.classList.toggle('open', isOpen);
+  launcher.classList.toggle('open', isOpen);
+  if (isOpen && msgs.children.length === 0) {
+    addMessage('bot', `Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`);
+    sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+  }
+  if (isOpen) setTimeout(() => input.focus(), 250);
+}
+
+launcher.addEventListener('click', toggleWidget);
+closeBtn.addEventListener('click', toggleWidget);
+
+// Close on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen) toggleWidget(); });
+
+// ── Quick-reply chips ─────────────────────────────────────────
+chips.querySelectorAll('.qc').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const msg = chip.dataset.msg;
+    sendMessage(msg);
+    chips.style.display = 'none'; // hide chips after first selection
+  });
+});
+
+// ── Message helpers ───────────────────────────────────────────
+function now() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function addMessage(role, text, decision = null) {
+  const isUser = role === 'user';
+  const row = document.createElement('div');
+  row.className = `msg-row ${isUser ? 'user' : 'bot'}`;
+
+  const av = document.createElement('div');
+  av.className = `msg-av ${isUser ? 'usr' : 'bot'}`;
+  av.textContent = isUser ? 'You' : 'AI';
+
+  const body = document.createElement('div');
+  const bub = document.createElement('div');
+  bub.className = 'msg-bub';
+  bub.textContent = text;
+
+  if (decision && decision !== 'need_order_id') {
+    const chip = document.createElement('div');
+    const labels = {
+      full_refund: '✓ Full refund approved',
+      partial_refund: '✓ Partial refund approved',
+      deny: '✗ Claim not approved',
+      escalate: '⚑ Escalated to team',
+    };
+    chip.className = `decision-chip dc-${decision}`;
+    chip.textContent = labels[decision] || decision;
+    bub.appendChild(document.createElement('br'));
+    bub.appendChild(chip);
+  }
+
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = now();
+
+  body.appendChild(bub);
+  body.appendChild(time);
+
+  if (isUser) {
+    row.appendChild(body);
+    row.appendChild(av);
+  } else {
+    row.appendChild(av);
+    row.appendChild(body);
+  }
+
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  if (isTyping) return;
+  isTyping = true;
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  row.id = 'typing-row';
+  const av = document.createElement('div');
+  av.className = 'msg-av bot';
+  av.textContent = 'AI';
+  const bub = document.createElement('div');
+  bub.className = 'msg-bub';
+  bub.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  row.appendChild(av);
+  row.appendChild(bub);
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  isTyping = false;
+  const row = document.getElementById('typing-row');
+  if (row) row.remove();
+}
+
+// ── Send message ──────────────────────────────────────────────
+async function sendMessage(text) {
+  if (!text.trim()) return;
+  text = text.trim();
+
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  addMessage('user', text);
+  showTyping();
+
+  try {
+    const resp = await fetch(`${CONFIG.apiBase}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, session_id: sessionId }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    sessionId = data.session_id; // update session ID from server
+    hideTyping();
+    addMessage('bot', data.response, data.decision);
+
+  } catch (err) {
+    hideTyping();
+    // If the server isn't running, show a demo response
+    addMessage('bot', getDemoResponse(text));
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+// ── Demo responses (when server is offline) ───────────────────
+function getDemoResponse(text) {
+  const t = text.toLowerCase();
+  if (t.includes('missing') || t.includes('ORD-002'.toLowerCase()))
+    return "I can see your order had a missing item. I've verified the order details and processed a partial refund of $4.99 for the garlic bread. This will appear in your account within 3–5 business days.";
+  if (t.includes('cold') || t.includes('quality') || t.includes('ORD-003'.toLowerCase()))
+    return "I'm sorry your food arrived cold, Carol. Based on our quality policy, I've approved a 30% refund of $7.04 for your order. It will be returned to your payment method within 3–5 business days.";
+  if (t.includes('late') || t.includes('ORD-005'.toLowerCase()))
+    return "I sincerely apologise for the delay — your order arrived 95 minutes late, which exceeds our 90-minute threshold. I've approved a full refund of $17.47.";
+  if (t.includes('ORD-007'.toLowerCase()) || t.includes('fraud') || t.includes('suspicious'))
+    return "I've reviewed your case and flagged it for human review. Our team will get back to you within 24 hours with a resolution. Thank you for your patience.";
+  if (t.includes('ORD-008'.toLowerCase()) || t.includes('fries'))
+    return "I've checked your order ORD-008 and can see it contained a Margherita Pizza, Caesar Salad, and Sparkling Water. Unfortunately, French Fries were not part of this order, so we're unable to process a refund for them.";
+  if (t.match(/ord-\d+/i))
+    return "I've found your order. Could you describe the issue you experienced? For example: missing item, quality problem, wrong order, or late delivery?";
+  return "I'd be happy to help! Could you share your order ID? You'll find it in your confirmation email (format: ORD-XXX).";
+}
+
+// ── Input auto-resize + send on Enter ────────────────────────
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+});
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(input.value);
+  }
+});
+
+sendBtn.addEventListener('click', () => sendMessage(input.value));
+</script>
+</body>
+</html>
