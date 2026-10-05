@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResolveIQ — Business Resolution Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0B0F17;
+  --surface: #131B2A;
+  --surface-2: #1E293B;
+  --surface-hover: #273549;
+  --border: #334155;
+  --fg: #F8FAFC;
+  --fg-2: #94A3B8;
+  --fg-3: #64748B;
+  --accent: #38BDF8;
+  --green: #22C55E;
+  --yellow: #F59E0B;
+  --red: #EF4444;
+  --purple: #818CF8;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+  margin-bottom: 28px;
+  color: #fff;
+  text-decoration: none;
+}
+.nav-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--fg-3);
+  margin: 16px 10px 8px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--fg-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all .15s;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.nav-item:hover, .nav-item.active {
+  background: var(--surface-2);
+  color: #fff;
+}
+.nav-item.active {
+  color: var(--accent);
+  border-left: 3px solid var(--accent);
+}
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+/* Main Area */
+.main {
+  flex: 1;
+  padding: 32px 36px 80px;
+  overflow-y: auto;
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+.page-title h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+.page-title p {
+  color: var(--fg-2);
+  font-size: 13.5px;
+}
+.tenant-switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tenant-dropdown {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+.tenant-dropdown:focus {
+  border-color: var(--accent);
+}
+
+/* KPI Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 30px;
+}
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+.kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  color: #fff;
+}
+.kpi-sub {
+  font-size: 12px;
+  color: var(--fg-2);
+  margin-top: 4px;
+}
+
+/* Filters & Table Card */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.table-filters {
+  padding: 16px 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.search-inp {
+  flex: 1;
+  min-width: 220px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 13.5px;
+  outline: none;
+}
+.search-inp:focus {
+  border-color: var(--accent);
+}
+.filter-select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  background: rgba(19, 27, 42, 0.5);
+  color: var(--fg-2);
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  color: var(--fg);
+}
+tr:hover td {
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.badge-resolved { background: rgba(34, 197, 94, 0.15); color: #4ADE80; }
+.badge-escalated { background: rgba(245, 158, 11, 0.15); color: #FBBF24; }
+.badge-waiting { background: rgba(56, 189, 248, 0.15); color: #38BDF8; }
+.badge-rejected { background: rgba(239, 68, 68, 0.15); color: #F87171; }
+.badge-new { background: rgba(148, 163, 184, 0.15); color: #CBD5E1; }
+
+.risk-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.risk-low { background: rgba(34, 197, 94, 0.12); color: #4ADE80; }
+.risk-med { background: rgba(245, 158, 11, 0.12); color: #FBBF24; }
+.risk-high { background: rgba(239, 68, 68, 0.15); color: #F87171; font-weight: 800; }
+
+/* Modal Drawer for Case Details */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-drawer {
+  width: 780px;
+  max-width: 90vw;
+  background: #111827;
+  height: 100vh;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.modal-overlay.open .modal-drawer {
+  transform: translateX(0);
+}
+.drawer-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+}
+.drawer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drawer-case-id {
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+.drawer-close {
+  background: none;
+  border: none;
+  color: var(--fg-2);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+.drawer-close:hover { color: #fff; }
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Detail Section Cards */
+.detail-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.section-hdr {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  font-size: 12.5px;
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meta-lbl {
+  color: var(--fg-3);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.meta-val {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Chat bubble transcript */
+.transcript-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.chat-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.chat-role {
+  font-weight: 700;
+  min-width: 70px;
+  color: var(--fg-3);
+}
+.chat-role.user { color: var(--accent); }
+.chat-role.assistant { color: var(--green); }
+.chat-text {
+  flex: 1;
+  background: var(--surface-2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #E2E8F0;
+}
+
+/* Evidence signals block */
+.signal-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.signal-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #E2E8F0;
+}
+
+/* Timeline */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  margin-left: 6px;
+}
+.tl-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  padding-left: 12px;
+}
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: -17px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.tl-header {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+.tl-event { font-weight: 700; color: #fff; }
+.tl-actor { color: var(--fg-3); }
+.tl-time { color: var(--fg-3); margin-left: auto; font-size: 11px; }
+.tl-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--fg-2); }
+
+/* Escalation Action Area */
+.drawer-footer {
+  padding: 16px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <a href="/widget" class="brand">
+    <span>⚡</span> ResolveIQ
+  </a>
+
+  <div class="nav-section-title">Navigation</div>
+  <div class="nav-item active" onclick="switchTab('overview')">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Overview
+  </div>
+  <div class="nav-item" onclick="switchTab('cases')">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Cases & Resolutions
+  </div>
+  <a href="/widget" class="nav-item">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    Support Widget Demo
+  </a>
+
+  <div class="sidebar-footer">
+    Multi-tenant Architecture<br>
+    Deterministic Policy Engine
+  </div>
+</aside>
+
+<!-- Main View -->
+<main class="main">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="page-title">
+      <h1>Operational Intelligence Dashboard</h1>
+      <p>Multi-tenant case resolution, multimodal evidence confidence, and gateway audits.</p>
+    </div>
+
+    <div class="tenant-switch-wrapper">
+      <label style="font-size: 13px; color: var(--fg-2);">Tenant Scope:</label>
+      <select class="tenant-dropdown" id="sel-tenant" onchange="onTenantChanged()">
+        <option value="all">All Businesses</option>
+        <option value="demo_foodco">🍕 Demo FoodCo (Food Delivery)</option>
+        <option value="fashionco">👗 FashionCo (Clothing & Apparel)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI Overview Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Cases <span>📊</span></div>
+      <div class="kpi-val" id="kpi-total">0</div>
+      <div class="kpi-sub"><span id="kpi-auto-pct">0%</span> resolved automatically</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Refunds / Compensation <span>💳</span></div>
+      <div class="kpi-val" id="kpi-comp">₹0</div>
+      <div class="kpi-sub">Executed through 6-tool gateway</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Escalations <span>⚑</span></div>
+      <div class="kpi-val" id="kpi-escalated">0</div>
+      <div class="kpi-sub"><span id="kpi-esc-pct">0%</span> of all incoming issues</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">High-Risk Cases <span>🛡️</span></div>
+      <div class="kpi-val" id="kpi-high-risk">0</div>
+      <div class="kpi-sub">Safely routed to human review</div>
+    </div>
+  </div>
+
+  <!-- Cases Table Card -->
+  <div class="table-card">
+    <div class="table-filters">
+      <input type="text" class="search-inp" id="inp-search" placeholder="Search case ID, customer, order number, claim…" oninput="loadCases()">
+      
+      <select class="filter-select" id="fil-status" onchange="loadCases()">
+        <option value="all">All Statuses</option>
+        <option value="RESOLVED">RESOLVED</option>
+        <option value="ESCALATED">ESCALATED</option>
+        <option value="WAITING_FOR_CUSTOMER_CONFIRMATION">WAITING CONFIRMATION</option>
+        <option value="REJECTED">REJECTED</option>
+      </select>
+
+      <select class="filter-select" id="fil-risk" onchange="loadCases()">
+        <option value="all">All Risk Levels</option>
+        <option value="LOW">LOW</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="HIGH_RISK_REVIEW">HIGH RISK REVIEW</option>
+      </select>
+
+      <select class="filter-select" id="fil-issue" onchange="loadCases()">
+        <option value="all">All Issue Types</option>
+        <option value="missing_item">Missing Item</option>
+        <option value="quality_issue">Quality Issue</option>
+        <option value="damaged_item">Damaged Item</option>
+        <option value="wrong_order">Wrong Order / Item</option>
+        <option value="late_delivery">Late Delivery</option>
+      </select>
+
+      <button onclick="loadDashboard()" style="background:var(--surface-2); color:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;">
+        ↻ Refresh
+      </button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Case ID</th>
+          <th>Tenant</th>
+          <th>Customer</th>
+          <th>Reference</th>
+          <th>Issue Type</th>
+          <th>Status</th>
+          <th>Risk</th>
+          <th>Evidence Conf.</th>
+          <th>Resolution</th>
+        </tr>
+      </thead>
+      <tbody id="cases-tbody">
+        <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--fg-3);">Loading cases…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Deep Case Details Modal Drawer -->
+<div class="modal-overlay" id="case-modal">
+  <div class="modal-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <span class="drawer-case-id" id="d-case-id">CASE-0000</span>
+        <span id="d-badge-status" class="badge">STATUS</span>
+        <span id="d-badge-tenant" style="font-size:12px; color:var(--fg-2);">Tenant</span>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- 1. Customer & Business Record Context -->
+      <div class="detail-section">
+        <div class="section-hdr">
+          <span>Customer & Business Order Context</span>
+          <span id="d-order-total" style="color:#fff; font-size:13px;">Total: ₹0</span>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-lbl">Customer Name</span>
+            <span class="meta-val" id="d-cust-name">-</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Customer ID</span>
+            <span class="meta-val" id="d-cust-id">-</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Reference / Order ID</span>
+            <span class="meta-val" id="d-order-id">-</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Order Status</span>
+            <span class="meta-val" id="d-order-status">-</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Payment Status</span>
+            <span class="meta-val" id="d-pay-status">-</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Items Count</span>
+            <span class="meta-val" id="d-item-count">-</span>
+          </div>
+        </div>
+        <div style="margin-top:10px; font-size:12px; color:var(--fg-2);" id="d-items-list"></div>
+      </div>
+
+      <!-- 2. Customer Complaint & Conversation History -->
+      <div class="detail-section">
+        <div class="section-hdr">Customer Claim & Conversation History</div>
+        <div class="transcript-box" id="d-conversation-box"></div>
+      </div>
+
+      <!-- 3. Multimodal Evidence Intelligence Layer -->
+      <div class="detail-section">
+        <div class="section-hdr">
+          <span>Evidence Intelligence Signals</span>
+          <span id="d-ev-conf-label" style="color:var(--accent); font-size:12.5px;">Confidence: 0/100</span>
+        </div>
+        <div id="d-evidence-content" style="font-size:12.5px; color:var(--fg-2);">
+          No uploaded media files for this case.
+        </div>
+      </div>
+
+      <!-- 4. Deterministic Policy & Risk Scoring -->
+      <div class="detail-section">
+        <div class="section-hdr">Policy Rules & Risk Evaluation</div>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-lbl">Risk Score</span>
+            <span class="meta-val" id="d-risk-score">0/100</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Risk Level</span>
+            <span class="meta-val" id="d-risk-level">LOW</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Auto-Refund Cap</span>
+            <span class="meta-val" id="d-policy-cap">₹1,500</span>
+          </div>
+        </div>
+        <div style="margin-top:10px; font-size:12px; color:var(--fg-2);" id="d-policy-summary"></div>
+      </div>
+
+      <!-- 5. Gateway Execution & Verification Read-Back -->
+      <div class="detail-section">
+        <div class="section-hdr">Tool Gateway Execution & Verification</div>
+        <div id="d-gateway-content" style="font-size:12.5px; color:var(--fg-2);">
+          No state-changing actions executed yet.
+        </div>
+      </div>
+
+      <!-- 6. Immutable Audit Timeline -->
+      <div class="detail-section">
+        <div class="section-hdr">Immutable Audit Timeline</div>
+        <div class="timeline-list" id="d-timeline-list"></div>
+      </div>
+    </div>
+
+    <!-- Escalation Resolve Form (Shown if Escalated) -->
+    <div class="drawer-footer" id="drawer-action-footer">
+      <div style="flex:1">
+        <div style="font-size:12px; font-weight:700; color:#FBBF24;">Escalation Actions (Human Agent Review)</div>
+        <input type="text" id="inp-agent-note" placeholder="Enter resolution notes…" style="width:100%; margin-top:4px; background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:#fff; font-size:12.5px;">
+      </div>
+      <button onclick="resolveCaseAction('full_refund')" style="background:var(--green); color:#0B0F17; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+        Approve Refund
+      </button>
+      <button onclick="resolveCaseAction('deny')" style="background:var(--red); color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+        Deny Claim
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentSelectedCaseId = null;
+
+// Dashboard API access (server-enforced bearer token).
+const DASH_TOKEN_KEY = "resolveiq_dash_token";
+function dashToken() { return localStorage.getItem(DASH_TOKEN_KEY) || "dev-dashboard-token"; }
+async function dashFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, { "Authorization": "Bearer " + dashToken() });
+  let res = await fetch(url, opts);
+  if (res.status === 401) {
+    const t = prompt("Enter dashboard access token:", dashToken());
+    if (t) {
+      localStorage.setItem(DASH_TOKEN_KEY, t.trim());
+      opts.headers["Authorization"] = "Bearer " + t.trim();
+      res = await fetch(url, opts);
+    }
+  }
+  return res;
+}
+
+async function loadStats() {
+  const tid = document.getElementById("sel-tenant").value;
+  try {
+    const res = await dashFetch(`/api/dashboard/stats?tenant_id=${tid}`);
+    const data = await res.json();
+    document.getElementById("kpi-total").textContent = data.total_cases || 0;
+    document.getElementById("kpi-auto-pct").textContent = `${data.auto_resolved_pct}%`;
+    document.getElementById("kpi-comp").textContent = `₹${Number(data.total_compensation).toLocaleString("en-IN")}`;
+    document.getElementById("kpi-escalated").textContent = data.escalated_cases || 0;
+    document.getElementById("kpi-esc-pct").textContent = `${data.escalated_pct}%`;
+    document.getElementById("kpi-high-risk").textContent = data.high_risk_cases || 0;
+  } catch (e) {
+    console.error("Stats load failed:", e);
+  }
+}
+
+async function loadCases() {
+  const tid = document.getElementById("sel-tenant").value;
+  const status = document.getElementById("fil-status").value;
+  const risk = document.getElementById("fil-risk").value;
+  const issue = document.getElementById("fil-issue").value;
+  const search = document.getElementById("inp-search").value.trim();
+
+  let url = `/api/dashboard/cases?tenant_id=${tid}&status=${status}&risk_level=${risk}&issue_type=${issue}`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+
+  try {
+    const res = await dashFetch(url);
+    const cases = await res.json();
+    renderCasesTable(cases);
+  } catch (e) {
+    console.error("Cases load failed:", e);
+  }
+}
+
+function renderCasesTable(cases) {
+  const tbody = document.getElementById("cases-tbody");
+  tbody.innerHTML = "";
+
+  if (!cases || cases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--fg-3);">No matching cases found.</td></tr>`;
+    return;
+  }
+
+  cases.forEach(c => {
+    const tr = document.createElement("tr");
+    tr.onclick = () => openCaseDetail(c.case_id);
+
+    const stClass = {
+      RESOLVED: "badge-resolved",
+      ESCALATED: "badge-escalated",
+      WAITING_FOR_CUSTOMER_CONFIRMATION: "badge-waiting",
+      REJECTED: "badge-rejected",
+    }[c.status] || "badge-new";
+
+    const riskClass = {
+      LOW: "risk-low",
+      MEDIUM: "risk-med",
+      HIGH_RISK_REVIEW: "risk-high",
+    }[c.risk_level] || "risk-low";
+
+    tr.innerHTML = `
+      <td style="font-weight:700; color:var(--accent);">${c.case_id}</td>
+      <td>${c.tenant_id === "fashionco" ? "👗 FashionCo" : "🍕 Demo FoodCo"}</td>
+      <td>${c.customer_name || c.customer_id || "Customer"}</td>
+      <td style="font-family:'JetBrains Mono'; font-size:12px;">${c.reference_id || "-"}</td>
+      <td style="text-transform:capitalize;">${(c.issue_type || "general").replace(/_/g, " ")}</td>
+      <td><span class="badge ${stClass}">${c.status.replace(/_/g, " ")}</span></td>
+      <td><span class="risk-pill ${riskClass}">${c.risk_score} (${c.risk_level})</span></td>
+      <td><strong>${c.evidence_confidence !== null ? c.evidence_confidence + "/100" : "-"}</strong></td>
+      <td style="font-weight:600;">${c.actual_resolution || c.recommended_resolution || "-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function openCaseDetail(caseId) {
+  currentSelectedCaseId = caseId;
+  const modal = document.getElementById("case-modal");
+  modal.classList.add("open");
+
+  try {
+    const res = await dashFetch(`/api/dashboard/cases/${caseId}`);
+    const data = await res.json();
+    populateDrawer(data);
+  } catch (e) {
+    console.error("Detail load failed:", e);
+  }
+}
+
+function populateDrawer(data) {
+  const c = data.case;
+  document.getElementById("d-case-id").textContent = c.case_id;
+  document.getElementById("d-badge-status").textContent = c.status;
+  document.getElementById("d-badge-status").className = `badge ${
+    c.status === "RESOLVED" ? "badge-resolved" : (c.status === "ESCALATED" ? "badge-escalated" : "badge-waiting")
+  }`;
+  document.getElementById("d-badge-tenant").textContent = c.tenant_id === "fashionco" ? "FashionCo (Fashion)" : "Demo FoodCo (Food)";
+
+  // Customer & Business info
+  document.getElementById("d-cust-name").textContent = c.customer_name || "N/A";
+  document.getElementById("d-cust-id").textContent = c.customer_id || "N/A";
+  document.getElementById("d-order-id").textContent = c.reference_id || "N/A";
+
+  const bRec = data.business_context?.record;
+  if (bRec) {
+    document.getElementById("d-order-total").textContent = `Order Total: ₹${bRec.total}`;
+    document.getElementById("d-order-status").textContent = bRec.status || "-";
+    document.getElementById("d-pay-status").textContent = `${bRec.payment_method || ""} (${bRec.payment_status || ""})`;
+    const items = bRec.items || [];
+    document.getElementById("d-item-count").textContent = `${items.length} items`;
+    document.getElementById("d-items-list").innerHTML = `<strong>Items in order:</strong> ` + items.map(i => `${i.name} (₹${i.price} × ${i.quantity})`).join(", ");
+  } else {
+    document.getElementById("d-order-total").textContent = "";
+    document.getElementById("d-order-status").textContent = "-";
+    document.getElementById("d-pay-status").textContent = "-";
+    document.getElementById("d-item-count").textContent = "-";
+    document.getElementById("d-items-list").textContent = "No business order record linked.";
+  }
+
+  // Conversation box
+  const cbox = document.getElementById("d-conversation-box");
+  cbox.innerHTML = "";
+  if (data.messages && data.messages.length) {
+    data.messages.forEach(m => {
+      const row = document.createElement("div");
+      row.className = "chat-row";
+      row.innerHTML = `
+        <span class="chat-role ${m.role}">${m.role.toUpperCase()}:</span>
+        <span class="chat-text">${m.content}</span>
+      `;
+      cbox.appendChild(row);
+    });
+  } else {
+    cbox.innerHTML = `<div style="color:var(--fg-3); font-size:12px;">No messages recorded.</div>`;
+  }
+
+  // Evidence
+  const evBox = document.getElementById("d-evidence-content");
+  document.getElementById("d-ev-conf-label").textContent = `Evidence Confidence: ${c.evidence_confidence !== null ? c.evidence_confidence : 0}/100`;
+  if (data.evidence && data.evidence.length) {
+    evBox.innerHTML = "";
+    data.evidence.forEach(ev => {
+      const an = ev.analyses || {};
+      const meta = an.metadata || {};
+      const prov = an.provenance || {};
+      const vis = an.visual || {};
+      const syn = an.synthetic || {};
+
+      evBox.innerHTML += `
+        <div style="background:var(--surface-2); padding:12px; border-radius:8px; margin-bottom:8px;">
+          <div style="font-weight:700; color:#fff; display:flex; justify-content:space-between;">
+            <span>📎 ${ev.filename || "Uploaded Evidence"} (${ev.mime_type})</span>
+            <span style="font-family:'JetBrains Mono'; font-size:11px;">SHA: ${ev.sha256 ? ev.sha256.slice(0, 16) + "…" : "-"}</span>
+          </div>
+          <div class="signal-pill-row">
+            <span class="signal-pill">📷 EXIF: ${meta.metadata_available ? "Present" : "Stripped/Absent"}</span>
+            <span class="signal-pill">🛡️ Provenance: ${prov.status || "UNKNOWN"}</span>
+            <span class="signal-pill">👁️ Visual: ${vis.claim_supported === true ? "Supports Claim" : (vis.claim_supported === false ? "Not Supported" : "Uncertain/Blurry")}</span>
+            <span class="signal-pill">🤖 AI Detector: ${syn.label || "UNCERTAIN"}</span>
+          </div>
+          <div style="font-size:12px; color:#E2E8F0; margin-top:8px;">
+            ${vis.note || "Technical and visual evidence evaluated against claim."}
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    evBox.innerHTML = `No uploaded media attached to this case. Claim evaluated from order records and policy rules.`;
+  }
+
+  // Policy & Risk
+  document.getElementById("d-risk-score").textContent = `${c.risk_score}/100`;
+  document.getElementById("d-risk-level").textContent = c.risk_level;
+  document.getElementById("d-policy-cap").textContent = data.policy ? `₹${data.policy.max_auto_amount}` : "₹1,500";
+  document.getElementById("d-policy-summary").innerHTML = `
+    <div><strong>Customer Refund History:</strong> ${data.customer_history.count_last_7_days} in last 7 days, ${data.customer_history.total_lifetime} lifetime.</div>
+    <div><strong>Policy Matched:</strong> ${c.issue_type || "default"} (Version ${data.policy?.policy_version || "v1"}).</div>
+  `;
+
+  // Gateway Action & Verification
+  const gbox = document.getElementById("d-gateway-content");
+  if (data.support_action) {
+    const act = data.support_action;
+    gbox.innerHTML = `
+      <div style="background:var(--surface-2); padding:12px; border-radius:8px; border-left:4px solid var(--green);">
+        <div style="font-weight:700; color:#fff; display:flex; justify-content:space-between;">
+          <span>Action ID: ${act.action_id} (${act.action_type})</span>
+          <span style="color:var(--green);">✓ VERIFIED BY GATEWAY</span>
+        </div>
+        <div style="margin-top:6px; color:#E2E8F0;">
+          <strong>Amount Executed:</strong> ₹${Number(act.amount).toFixed(0)} &nbsp;|&nbsp;
+          <strong>Read-back Result:</strong> ${act.verification_result || "VERIFIED"}
+        </div>
+        <div style="font-size:11px; color:var(--fg-3); margin-top:4px;">
+          Timestamp: ${act.created_at} &nbsp;|&nbsp; Confirmation ID: ${act.confirmation_id || "N/A"}
+        </div>
+      </div>
+    `;
+  } else if (c.status === "WAITING_FOR_CUSTOMER_CONFIRMATION") {
+    gbox.innerHTML = `
+      <div style="background:var(--surface-2); padding:10px; border-radius:6px; border-left:4px solid var(--accent); color:#E2E8F0;">
+        ⏳ Resolution recommended: <strong>${c.recommended_resolution}</strong>. Awaiting explicit customer authorization button click.
+      </div>
+    `;
+  } else {
+    gbox.innerHTML = `No financial/order mutations executed for this case.`;
+  }
+
+  // Audit Timeline
+  const tlist = document.getElementById("d-timeline-list");
+  tlist.innerHTML = "";
+  if (data.timeline && data.timeline.length) {
+    data.timeline.forEach(t => {
+      const item = document.createElement("div");
+      item.className = "tl-item";
+      item.innerHTML = `
+        <div class="tl-header">
+          <span class="tl-event">${t.event_type}</span>
+          <span class="tl-actor">[${t.actor}]</span>
+          <span class="tl-time">${new Date(t.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div class="tl-meta">${JSON.stringify(t.metadata)}</div>
+      `;
+      tlist.appendChild(item);
+    });
+  }
+
+  // Escalation buttons visibility
+  const footer = document.getElementById("drawer-action-footer");
+  footer.style.display = (c.status === "ESCALATED") ? "flex" : "none";
+}
+
+function closeDrawer() {
+  document.getElementById("case-modal").classList.remove("open");
+}
+
+async function resolveCaseAction(resolution) {
+  const note = document.getElementById("inp-agent-note").value.trim() || "Resolved by operations specialist";
+  if (!currentSelectedCaseId) return;
+
+  try {
+    const res = await dashFetch(`/api/dashboard/cases/${currentSelectedCaseId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resolution: resolution, agent_notes: note }),
+    });
+    if (res.ok) {
+      await openCaseDetail(currentSelectedCaseId);
+      loadStats();
+      loadCases();
+    }
+  } catch (e) {
+    alert("Error resolving case: " + e);
+  }
+}
+
+function onTenantChanged() {
+  loadStats();
+  loadCases();
+}
+
+function switchTab(tab) {
+  // Navigation tabs helper
+}
+
+function loadDashboard() {
+  loadStats();
+  loadCases();
+}
+
+// Initial Load
+loadDashboard();
+</script>
+</body>
+</html>

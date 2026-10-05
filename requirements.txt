@@ -21,3 +21,9 @@ pydantic>=2.10.0
 
 # Optional: PDF support (if using the ComplaintBot PDF rulebook)
 pypdf>=4.0.0
+
+# Evidence uploads & tests
+python-multipart>=0.0.9
+Pillow>=10.0.0
+httpx>=0.27.0
+pytest>=8.0.0

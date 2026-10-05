@@ -3,521 +3,574 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ResolveIQ — Embeddable Support Widget Demo</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700&display=swap">
+<title>ResolveIQ — Multimodal AI Customer Resolution Platform</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* ── DEMO PAGE ─────────────────────────────────────────────── */
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --brand:#2563EB;
-  --brand-dark:#1D4ED8;
-  --bg:#F1F5F9;
-  --surface:#fff;
-  --fg:#0F172A;
-  --fg-2:#475569;
-  --fg-3:#94A3B8;
-  --border:#E2E8F0;
-}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
-
-.demo-page{max-width:900px;margin:0 auto;padding:48px 24px 160px}
-.demo-hero{text-align:center;margin-bottom:48px}
-.demo-badge{display:inline-block;background:rgba(37,99,235,.1);color:var(--brand);font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;margin-bottom:16px}
-.demo-title{font-family:'Outfit',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.8px;margin-bottom:12px}
-.demo-sub{font-size:16px;color:var(--fg-2);max-width:520px;margin:0 auto;line-height:1.6}
-
-.demo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
-.step-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
-.step-n{width:28px;height:28px;background:rgba(37,99,235,.1);color:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-bottom:12px}
-.step-t{font-weight:600;font-size:14px;margin-bottom:6px}
-.step-d{font-size:13px;color:var(--fg-2);line-height:1.5}
-
-.embed-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
-.embed-title{font-weight:600;font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13px;overflow-x:auto;line-height:1.6}
-.keyword{color:#93C5FD} .string{color:#86EFAC} .comment{color:#64748B}
-
-/* ── CHAT WIDGET ──────────────────────────────────────────── */
-#riq-launcher{
-  position:fixed;bottom:24px;right:24px;
-  width:56px;height:56px;
-  background:var(--brand);
-  border-radius:50%;
-  border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 14px rgba(37,99,235,.4);
-  transition:all .2s;
-  z-index:9999;
-}
-#riq-launcher:hover{background:var(--brand-dark);transform:scale(1.05)}
-#riq-launcher svg{transition:all .2s}
-#riq-launcher.open .icon-chat{display:none}
-#riq-launcher.open .icon-close{display:block!important}
-
-#riq-widget{
-  position:fixed;bottom:92px;right:24px;
-  width:380px;max-width:calc(100vw - 32px);
-  height:560px;max-height:calc(100vh - 120px);
-  background:#fff;
-  border-radius:16px;
-  box-shadow:0 20px 60px rgba(0,0,0,.15),0 4px 16px rgba(0,0,0,.08);
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  z-index:9998;
-  transform:scale(.95) translateY(12px);
-  opacity:0;
-  pointer-events:none;
-  transition:all .22s cubic-bezier(.34,1.56,.64,1);
-}
-#riq-widget.open{
-  transform:scale(1) translateY(0);
-  opacity:1;
-  pointer-events:all;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0B0F17;
+  --surface: #131B2A;
+  --surface-2: #1E293B;
+  --border: #334155;
+  --fg: #F8FAFC;
+  --fg-2: #94A3B8;
+  --brand-food: #EA580C;
+  --brand-fashion: #4F46E5;
+  --accent: #38BDF8;
+  --green: #22C55E;
 }
 
-/* widget header */
-.w-hdr{
-  background:var(--brand);
-  padding:16px 18px;
-  display:flex;align-items:center;gap:12px;
-  flex-shrink:0;
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  line-height: 1.6;
 }
-.w-avatar{
-  width:36px;height:36px;
-  background:rgba(255,255,255,.2);
-  border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;flex-shrink:0;
-}
-.w-info{flex:1;min-width:0}
-.w-name{font-weight:700;font-size:14px;color:#fff;font-family:'Outfit',sans-serif}
-.w-status{font-size:12px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:5px}
-.w-dot{width:6px;height:6px;background:#4ADE80;border-radius:50%}
-.w-close{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:4px;border-radius:4px;transition:color .15s;font-size:18px;line-height:1}
-.w-close:hover{color:#fff}
 
-/* messages */
-.w-msgs{
-  flex:1;overflow-y:auto;
-  padding:16px;
-  display:flex;flex-direction:column;gap:12px;
-  scroll-behavior:smooth;
+/* Nav */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 36px;
+  background: rgba(19, 27, 42, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
-.w-msgs::-webkit-scrollbar{width:4px}
-.w-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+.brand-badge {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.nav-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.nav-btn {
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-btn:hover {
+  background: #334155;
+  color: #fff;
+}
+.nav-btn.primary {
+  background: var(--accent);
+  color: #0B0F17;
+  border-color: var(--accent);
+}
+.nav-btn.primary:hover {
+  background: #7DD3FC;
+}
 
-.msg-row{display:flex;gap:8px;align-items:flex-end}
-.msg-row.user{flex-direction:row-reverse}
+/* Container */
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 44px 24px 160px;
+}
 
-.msg-av{
-  width:26px;height:26px;border-radius:50%;
-  flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:700;
+/* Hero */
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
 }
-.msg-av.bot{background:rgba(37,99,235,.1);color:var(--brand)}
-.msg-av.usr{background:#E2E8F0;color:var(--fg-2)}
+.hero h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+  line-height: 1.2;
+}
+.hero p {
+  color: var(--fg-2);
+  font-size: 17px;
+  max-width: 680px;
+  margin: 0 auto 28px;
+}
 
-.msg-bub{
-  max-width:78%;
-  padding:10px 13px;
-  border-radius:14px;
-  font-size:13.5px;
-  line-height:1.55;
+/* Tenant Switcher */
+.tenant-selector-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 32px;
 }
-.msg-row.bot .msg-bub{
-  background:#F1F5F9;
-  color:var(--fg);
-  border-radius:2px 14px 14px 14px;
+.t-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all .2s;
 }
-.msg-row.user .msg-bub{
-  background:var(--brand);
-  color:#fff;
-  border-radius:14px 2px 14px 14px;
+.t-btn.active.food {
+  background: rgba(234, 88, 12, 0.2);
+  color: #FB923C;
+  border: 1px solid rgba(234, 88, 12, 0.4);
 }
-.msg-time{font-size:10.5px;color:var(--fg-3);margin-top:4px}
-.msg-row.user .msg-time{text-align:right}
+.t-btn.active.fashion {
+  background: rgba(79, 70, 229, 0.2);
+  color: #A5B4FC;
+  border: 1px solid rgba(79, 70, 229, 0.4);
+}
 
-/* decision badge inside message */
-.decision-chip{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:3px 9px;border-radius:99px;
-  font-size:11px;font-weight:700;
-  margin-top:8px;
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 28px;
+  margin-bottom: 36px;
 }
-.dc-full_refund,.dc-partial_refund{background:#DCFCE7;color:#166534}
-.dc-deny{background:#FEE2E2;color:#991B1B}
-.dc-escalate{background:#FEF9C3;color:#854D0E}
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+}
 
-/* typing indicator */
-.typing{display:flex;align-items:center;gap:4px;padding:8px 4px}
-.typing span{
-  width:7px;height:7px;background:var(--fg-3);border-radius:50%;
-  animation:bounce .8s infinite ease-in-out;
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
 }
-.typing span:nth-child(2){animation-delay:.15s}
-.typing span:nth-child(3){animation-delay:.3s}
-@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-/* input area */
-.w-in{
-  padding:12px;
-  border-top:1px solid var(--border);
-  display:flex;gap:8px;align-items:flex-end;
-  flex-shrink:0;
+/* Scenarios */
+.scenario-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.w-textarea{
-  flex:1;
-  background:#F8FAFC;border:1px solid var(--border);
-  border-radius:10px;
-  padding:9px 13px;
-  font-size:13.5px;color:var(--fg);
-  font-family:inherit;resize:none;
-  outline:none;line-height:1.45;
-  max-height:100px;overflow-y:auto;
-  transition:border-color .15s;
+.scenario-item {
+  background: var(--surface-2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.w-textarea:focus{border-color:var(--brand)}
-.w-send{
-  width:36px;height:36px;flex-shrink:0;
-  background:var(--brand);border:none;border-radius:9px;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:background .15s;
+.scenario-item:hover {
+  background: #334155;
+  border-color: rgba(255,255,255,0.18);
+  transform: translateX(3px);
 }
-.w-send:hover{background:var(--brand-dark)}
-.w-send:disabled{opacity:.5;cursor:default}
+.sc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sc-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+}
+.sc-desc {
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.sc-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.tag-refund { background: rgba(34, 197, 94, 0.15); color: #4ADE80; }
+.tag-escalate { background: rgba(234, 179, 8, 0.15); color: #FDE047; }
+.tag-deny { background: rgba(239, 68, 68, 0.15); color: #FCA5A5; }
+.tag-photo { background: rgba(56, 189, 248, 0.15); color: #7DD3FC; }
 
-/* quick-reply chips */
-.quick-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
-.qc{
-  background:#EFF6FF;color:var(--brand);
-  border:1px solid rgba(37,99,235,.15);
-  border-radius:99px;padding:5px 12px;
-  font-size:12px;font-weight:500;cursor:pointer;
-  transition:all .12s;white-space:nowrap;
+/* Architecture Box */
+.arch-box {
+  background: #0F172A;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #94A3B8;
+  overflow-x: auto;
 }
-.qc:hover{background:var(--brand);color:#fff}
+.arch-box strong { color: var(--accent); }
 
-/* powered-by footer */
-.w-foot{
-  padding:6px 14px 10px;text-align:center;
-  font-size:11px;color:var(--fg-3);
-  flex-shrink:0;
+/* Embed snippet */
+pre.code {
+  background: #090D14;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: #E2E8F0;
+  overflow-x: auto;
 }
-.w-foot a{color:var(--fg-3);text-decoration:none}
+.kw { color: #93C5FD; }
+.str { color: #86EFAC; }
+.cm { color: #64748B; }
 
-/* ── responsive ── */
-@media(max-width:480px){
-  #riq-widget{width:calc(100vw - 16px);right:8px;bottom:80px;height:calc(100vh - 104px)}
-  .demo-steps{grid-template-columns:1fr}
+/* Sample image generator */
+.sample-img-box {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.sample-canvas {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
 }
 </style>
 </head>
 <body>
 
-<!-- ── DEMO PAGE CONTENT ───────────────────────────────────────────────────── -->
-<div class="demo-page">
-  <div class="demo-hero">
-    <div class="demo-badge">ResolveIQ · Embeddable Chat Widget</div>
-    <h1 class="demo-title">Customer support<br>that actually resolves.</h1>
-    <p class="demo-sub">Drop one script tag into your website. The AI handles missing items, quality issues, wrong orders, and late deliveries — and escalates the ones it shouldn't touch.</p>
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="brand-logo">
+    <span>⚡</span> ResolveIQ
+    <span class="brand-badge">Multi-Tenant Platform</span>
+  </div>
+  <div class="nav-links">
+    <a href="/dashboard" class="nav-btn primary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Business Dashboard
+    </a>
+    <a href="/docs" target="_blank" class="nav-btn">API Specs</a>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Multimodal Evidence-Based<br>Customer Resolution Platform</h1>
+    <p>Shop-Ease / ResolveIQ separates AI natural language understanding from deterministic backend policy, risk analysis, and tool gateway execution.</p>
+
+    <!-- Tenant Switcher Buttons -->
+    <div class="tenant-selector-bar">
+      <button class="t-btn active food" id="tbtn-food" onclick="switchActiveTenant('demo_foodco')">
+        🍕 Demo FoodCo (Food Delivery)
+      </button>
+      <button class="t-btn fashion" id="tbtn-fashion" onclick="switchActiveTenant('fashionco')">
+        👗 FashionCo (Clothing & Apparel)
+      </button>
+    </div>
   </div>
 
-  <div class="demo-steps">
-    <div class="step-card">
-      <div class="step-n">1</div>
-      <div class="step-t">Intake Classification</div>
-      <div class="step-d">Complaint type and order ID extracted via structured LLM output. No regex heuristics.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-n">2</div>
-      <div class="step-t">RISE-M Adjudication</div>
-      <div class="step-d">Policy RAG + refund history + risk score feed a structured prompt. The agent decides: refund, partial, deny, or escalate.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-n">3</div>
-      <div class="step-t">Auditable Action</div>
-      <div class="step-d">Every decision is logged. Escalations write a full handoff record with conversation history and risk flags.</div>
-    </div>
-  </div>
+  <!-- Interactive Sandbox Grid -->
+  <div class="grid">
+    <!-- Left Column: Test Scenarios -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🎯</span> Click-to-Test Scenarios for <span id="lbl-active-tenant">Demo FoodCo</span>
+        </div>
+        <span style="font-size:12px; color:var(--fg-2);">Click any row to test</span>
+      </div>
 
-  <div class="embed-box">
-    <div class="embed-title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      Drop into any website
-    </div>
-<pre><span class="comment">&lt;!-- 1. Add to your &lt;head&gt; --&gt;</span>
-<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"https://your-deployment.com/widget.js"</span>
-        <span class="string">data-api</span>=<span class="string">"https://your-deployment.com/api"</span>
-        <span class="string">data-company</span>=<span class="string">"Acme Foods"</span>
-        <span class="string">data-color</span>=<span class="string">"#2563EB"</span>
-        <span class="string">async</span><span class="keyword">&gt;&lt;/script&gt;</span>
+      <div class="scenario-list" id="scenarios-container">
+        <!-- Rendered by JS based on active tenant -->
+      </div>
 
-<span class="comment">&lt;!-- That's it. The chat button appears bottom-right. --&gt;</span>
-<span class="comment">&lt;!-- POST /api/chat   GET /api/session/:id   WS /ws/:id --&gt;</span></pre>
-  </div>
-
-  <div class="embed-box">
-    <div class="embed-title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Try it live — click the chat button ↘
+      <!-- Sample Image Evidence Generator -->
+      <div class="sample-img-box">
+        <canvas id="mock-canvas" class="sample-canvas" width="120" height="120"></canvas>
+        <div style="flex:1">
+          <div style="font-size:13px; font-weight:600; color:#fff;">Sample Evidence Image Available</div>
+          <div style="font-size:11.5px; color:var(--fg-2); margin-top:2px;">
+            Simulated photo of torn garment / damaged container ready to attach in chat.
+          </div>
+          <button id="btn-use-sample-img" style="margin-top:6px; background:var(--accent); color:#0B0F17; border:none; border-radius:6px; padding:4px 10px; font-size:11.5px; font-weight:700; cursor:pointer;">
+            📎 Attach Sample Evidence
+          </button>
+        </div>
+      </div>
     </div>
-    <p style="font-size:13px;color:var(--fg-2);line-height:1.6">
-      The widget below is connected to the local FastAPI server. Try:
-      <br>• "My order ORD-002 is missing the garlic bread"
-      <br>• "The food from ORD-003 arrived completely cold"
-      <br>• "I want to report an issue with ORD-007" &nbsp;(triggers escalation)
-      <br>• "ORD-008 — my fries were missing" &nbsp;(claim mismatch → deny)
-    </p>
+
+    <!-- Right Column: Architecture & Embed Snippet -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>⚙️</span> Resolution Lifecycle & Gateway
+        </div>
+        <span style="font-size:11.5px; color:var(--accent);">Authoritative Boundary</span>
+      </div>
+
+      <div class="arch-box">
+CUSTOMER CLAIM + EVIDENCE
+       │
+       ▼
+EVIDENCE INTELLIGENCE (EXIF + C2PA + Vision)
+       │
+       ▼
+POLICY ENGINE (Deterministic INR limits)
+       │
+       ▼
+RISK ENGINE (Behavioural flags & history)
+       │
+       ▼
+RESOLUTION SIMULATOR (Recommends only)
+       │
+  Customer Confirmation via UI
+       │
+       ▼
+TOOL GATEWAY (6-tools: Read-back verified)
+       │
+       ▼
+IMMUTABLE AUDIT TIMELINE + DASHBOARD
+      </div>
+
+      <div style="margin-top:20px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:var(--fg);">
+          Embed Widget into Any Tenant Website:
+        </div>
+        <pre class="code"><span class="cm">&lt;!-- Drop into any site --&gt;</span>
+<span class="kw">&lt;script</span> <span class="str">src</span>=<span class="str" id="snippet-src">"/widget.js"</span>
+        <span class="str">data-tenant</span>=<span class="str" id="snippet-tenant">"demo_foodco"</span>
+        <span class="str">data-api</span>=<span class="str" id="snippet-api">"/api"</span>
+        <span class="kw">async&gt;&lt;/script&gt;</span></pre>
+      </div>
+    </div>
   </div>
 </div>
 
-
-<!-- ── CHAT WIDGET ──────────────────────────────────────────────────────────── -->
-
-<!-- Launcher button -->
-<button id="riq-launcher" aria-label="Open support chat">
-  <svg class="icon-chat" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
-    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-  </svg>
-  <svg class="icon-close" style="display:none" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-</button>
-
-<!-- Chat panel -->
-<div id="riq-widget" role="dialog" aria-label="Customer support chat">
-  <div class="w-hdr">
-    <div class="w-avatar">🤖</div>
-    <div class="w-info">
-      <div class="w-name" id="w-name">ResolveIQ Support</div>
-      <div class="w-status"><span class="w-dot"></span> AI-powered · typically instant</div>
-    </div>
-    <button class="w-close" id="w-close-btn" aria-label="Close chat">✕</button>
-  </div>
-
-  <div class="w-msgs" id="w-msgs"></div>
-
-  <div class="quick-chips" id="w-chips">
-    <div class="qc" data-msg="I have a missing item in my order">Missing item</div>
-    <div class="qc" data-msg="My food quality was very poor">Quality issue</div>
-    <div class="qc" data-msg="I received the wrong order">Wrong order</div>
-    <div class="qc" data-msg="My order arrived very late">Late delivery</div>
-  </div>
-
-  <div class="w-in">
-    <textarea class="w-textarea" id="w-input" rows="1"
-      placeholder="Describe your issue…" aria-label="Type your message"></textarea>
-    <button class="w-send" id="w-send" aria-label="Send message">
-      <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
-        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-    </button>
-  </div>
-
-  <div class="w-foot">Powered by <a href="#">ResolveIQ</a></div>
-</div>
-
+<!-- Load ResolveIQ Embeddable Widget Script -->
+<script src="/widget.js" data-tenant="demo_foodco" data-api="/api"></script>
 
 <script>
-// ── Widget configuration ──────────────────────────────────────
-const CONFIG = {
-  apiBase: 'http://localhost:8000',   // Change to your deployment URL
-  companyName: 'ResolveIQ Support',
-  botName: 'ResolveIQ',
+// Mock canvas drawing (simulated photo of damaged garment / food issue)
+const canvas = document.getElementById("mock-canvas");
+const ctx = canvas.getContext("2d");
+ctx.fillStyle = "#E2E8F0";
+ctx.fillRect(0, 0, 120, 120);
+// draw simulated cloth texture & tear
+ctx.strokeStyle = "#3B82F6";
+ctx.lineWidth = 4;
+ctx.beginPath();
+ctx.moveTo(20, 30);
+ctx.lineTo(100, 30);
+ctx.stroke();
+// tear
+ctx.strokeStyle = "#EF4444";
+ctx.lineWidth = 3;
+ctx.beginPath();
+ctx.moveTo(40, 50);
+ctx.lineTo(60, 80);
+ctx.lineTo(80, 60);
+ctx.stroke();
+ctx.fillStyle = "#1E293B";
+ctx.font = "10px sans-serif";
+ctx.fillText("DAMAGED", 36, 105);
+
+let sampleImageBlob = null;
+canvas.toBlob((blob) => {
+  sampleImageBlob = new File([blob], "evidence_defect_sample.jpg", { type: "image/jpeg" });
+}, "image/jpeg");
+
+document.getElementById("btn-use-sample-img").addEventListener("click", () => {
+  if (!sampleImageBlob) return;
+  const dt = new DataTransfer();
+  dt.items.add(sampleImageBlob);
+  const fileInput = document.getElementById("riq-file-input");
+  if (fileInput) {
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+    if (window.ResolveIQ) window.ResolveIQ.open();
+  }
+});
+
+// Tenant Scenario Data
+const SCENARIOS = {
+  demo_foodco: [
+    {
+      title: "Missing Item Claim (Garlic Bread)",
+      desc: "ORD-002: Customer claims missing garlic bread (₹89 refund eligible).",
+      msg: "Hi, I received my order ORD-002 but the Garlic Bread was missing from the bag.",
+      tag: "Auto-Refund",
+      tagClass: "tag-refund",
+    },
+    {
+      title: "Quality Complaint (Food Arrived Cold)",
+      desc: "ORD-003: Moderate quality complaint, ₹210 partial refund recommended.",
+      msg: "Order ORD-003 arrived completely cold and spilled.",
+      tag: "Quality / Photo",
+      tagClass: "tag-photo",
+    },
+    {
+      title: "Very Late Delivery (>90 min delay)",
+      desc: "ORD-005: 95 minutes past estimated time (qualifies for 100% full refund ₹360).",
+      msg: "Where is my order ORD-005? It arrived 95 minutes late!",
+      tag: "Full Refund",
+      tagClass: "tag-refund",
+    },
+    {
+      title: "Claim Contradiction (Fries Not in Order)",
+      desc: "ORD-008: Customer claims french fries, but order contained pizza & salad.",
+      msg: "My order ORD-008 was missing the French Fries!",
+      tag: "Contradiction",
+      tagClass: "tag-deny",
+    },
+    {
+      title: "High Risk Customer (4 Claims in 7 Days)",
+      desc: "ORD-007: Customer risk score > 50 triggers automatic human escalation.",
+      msg: "I have an issue with order ORD-007, need a refund.",
+      tag: "Escalate",
+      tagClass: "tag-escalate",
+    },
+    {
+      title: "Already Refunded Order",
+      desc: "ORD-010: Previously refunded order blocks duplicate refund.",
+      msg: "I want another refund for order ORD-010.",
+      tag: "Duplicate Block",
+      tagClass: "tag-deny",
+    },
+  ],
+  fashionco: [
+    {
+      title: "Damaged / Torn Garment on Arrival",
+      desc: "ORD-FAS-101: Classic Cotton Shirt arrived torn. Attach photo for ₹1,499 refund.",
+      msg: "I received my order ORD-FAS-101 but the Oxford Shirt arrived torn with a cut on the sleeve.",
+      tag: "Photo Refund",
+      tagClass: "tag-photo",
+    },
+    {
+      title: "Wrong Item / Incorrect Size",
+      desc: "ORD-FAS-102: Received black hoodie instead of denim jacket (₹2,899).",
+      msg: "Order ORD-FAS-102 arrived but you sent a black hoodie instead of the Vintage Denim Jacket.",
+      tag: "Replacement",
+      tagClass: "tag-refund",
+    },
+    {
+      title: "High-Value Luxury Order (Human Review)",
+      desc: "ORD-FAS-103: Order total ₹10,098 exceeds ₹2,500 auto limit -> Escalates.",
+      msg: "My luxury order ORD-FAS-103 has a defect in the silk dress.",
+      tag: "Senior Review",
+      tagClass: "tag-escalate",
+    },
+    {
+      title: "Catalogue Contradiction",
+      desc: "ORD-FAS-104: Claims missing sunglasses, which is not in order ORD-FAS-104.",
+      msg: "The sunglasses from order ORD-FAS-104 were not in the parcel.",
+      tag: "Contradiction",
+      tagClass: "tag-deny",
+    },
+  ],
 };
 
-// ── State ─────────────────────────────────────────────────────
-let sessionId = null;
-let isOpen = false;
-let isTyping = false;
-let ws = null;
+function renderScenarios(tenantId) {
+  const container = document.getElementById("scenarios-container");
+  container.innerHTML = "";
+  const list = SCENARIOS[tenantId] || [];
 
-// Try WebSocket; fall back to REST
-const USE_WS = false; // set to true if your server is running
-
-// ── DOM refs ──────────────────────────────────────────────────
-const launcher  = document.getElementById('riq-launcher');
-const widget    = document.getElementById('riq-widget');
-const msgs      = document.getElementById('w-msgs');
-const input     = document.getElementById('w-input');
-const sendBtn   = document.getElementById('w-send');
-const closeBtn  = document.getElementById('w-close-btn');
-const chips     = document.getElementById('w-chips');
-const wName     = document.getElementById('w-name');
-
-wName.textContent = CONFIG.companyName;
-
-// ── Open / close ──────────────────────────────────────────────
-function toggleWidget() {
-  isOpen = !isOpen;
-  widget.classList.toggle('open', isOpen);
-  launcher.classList.toggle('open', isOpen);
-  if (isOpen && msgs.children.length === 0) {
-    addMessage('bot', `Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`);
-    sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
-  }
-  if (isOpen) setTimeout(() => input.focus(), 250);
-}
-
-launcher.addEventListener('click', toggleWidget);
-closeBtn.addEventListener('click', toggleWidget);
-
-// Close on Escape
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen) toggleWidget(); });
-
-// ── Quick-reply chips ─────────────────────────────────────────
-chips.querySelectorAll('.qc').forEach(chip => {
-  chip.addEventListener('click', () => {
-    const msg = chip.dataset.msg;
-    sendMessage(msg);
-    chips.style.display = 'none'; // hide chips after first selection
-  });
-});
-
-// ── Message helpers ───────────────────────────────────────────
-function now() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function addMessage(role, text, decision = null) {
-  const isUser = role === 'user';
-  const row = document.createElement('div');
-  row.className = `msg-row ${isUser ? 'user' : 'bot'}`;
-
-  const av = document.createElement('div');
-  av.className = `msg-av ${isUser ? 'usr' : 'bot'}`;
-  av.textContent = isUser ? 'You' : 'AI';
-
-  const body = document.createElement('div');
-  const bub = document.createElement('div');
-  bub.className = 'msg-bub';
-  bub.textContent = text;
-
-  if (decision && decision !== 'need_order_id') {
-    const chip = document.createElement('div');
-    const labels = {
-      full_refund: '✓ Full refund approved',
-      partial_refund: '✓ Partial refund approved',
-      deny: '✗ Claim not approved',
-      escalate: '⚑ Escalated to team',
-    };
-    chip.className = `decision-chip dc-${decision}`;
-    chip.textContent = labels[decision] || decision;
-    bub.appendChild(document.createElement('br'));
-    bub.appendChild(chip);
-  }
-
-  const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = now();
-
-  body.appendChild(bub);
-  body.appendChild(time);
-
-  if (isUser) {
-    row.appendChild(body);
-    row.appendChild(av);
-  } else {
-    row.appendChild(av);
-    row.appendChild(body);
-  }
-
-  msgs.appendChild(row);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function showTyping() {
-  if (isTyping) return;
-  isTyping = true;
-  const row = document.createElement('div');
-  row.className = 'msg-row bot';
-  row.id = 'typing-row';
-  const av = document.createElement('div');
-  av.className = 'msg-av bot';
-  av.textContent = 'AI';
-  const bub = document.createElement('div');
-  bub.className = 'msg-bub';
-  bub.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
-  row.appendChild(av);
-  row.appendChild(bub);
-  msgs.appendChild(row);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function hideTyping() {
-  isTyping = false;
-  const row = document.getElementById('typing-row');
-  if (row) row.remove();
-}
-
-// ── Send message ──────────────────────────────────────────────
-async function sendMessage(text) {
-  if (!text.trim()) return;
-  text = text.trim();
-
-  input.value = '';
-  input.style.height = 'auto';
-  sendBtn.disabled = true;
-
-  addMessage('user', text);
-  showTyping();
-
-  try {
-    const resp = await fetch(`${CONFIG.apiBase}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
+  list.forEach((sc) => {
+    const el = document.createElement("div");
+    el.className = "scenario-item";
+    el.innerHTML = `
+      <div class="sc-info">
+        <div class="sc-title">${sc.title}</div>
+        <div class="sc-desc">${sc.desc}</div>
+      </div>
+      <span class="sc-tag ${sc.tagClass}">${sc.tag}</span>
+    `;
+    el.addEventListener("click", () => {
+      if (window.ResolveIQ) {
+        window.ResolveIQ.open();
+        const inputEl = document.getElementById("riq-textarea");
+        if (inputEl) {
+          inputEl.value = sc.msg;
+          inputEl.focus();
+        }
+      }
     });
+    container.appendChild(el);
+  });
+}
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+function switchActiveTenant(tenantId) {
+  const isFood = tenantId === "demo_foodco";
+  document.getElementById("tbtn-food").className = `t-btn ${isFood ? "active food" : ""}`;
+  document.getElementById("tbtn-fashion").className = `t-btn ${!isFood ? "active fashion" : ""}`;
+  document.getElementById("lbl-active-tenant").textContent = isFood ? "Demo FoodCo" : "FashionCo";
+  document.getElementById("snippet-tenant").textContent = `"${tenantId}"`;
+  const origin = window.location.origin;
+  document.getElementById("snippet-src").textContent = `"${origin}/widget.js"`;
+  document.getElementById("snippet-api").textContent = `"${origin}/api"`;
 
-    sessionId = data.session_id; // update session ID from server
-    hideTyping();
-    addMessage('bot', data.response, data.decision);
+  renderScenarios(tenantId);
 
-  } catch (err) {
-    hideTyping();
-    // If the server isn't running, show a demo response
-    addMessage('bot', getDemoResponse(text));
-  } finally {
-    sendBtn.disabled = false;
-    input.focus();
+  if (window.ResolveIQ && window.ResolveIQ.switchTenant) {
+    window.ResolveIQ.switchTenant(tenantId);
   }
 }
 
-// ── Demo responses (when server is offline) ───────────────────
-function getDemoResponse(text) {
-  const t = text.toLowerCase();
-  if (t.includes('missing') || t.includes('ORD-002'.toLowerCase()))
-    return "I can see your order had a missing item. I've verified the order details and processed a partial refund of $4.99 for the garlic bread. This will appear in your account within 3–5 business days.";
-  if (t.includes('cold') || t.includes('quality') || t.includes('ORD-003'.toLowerCase()))
-    return "I'm sorry your food arrived cold, Carol. Based on our quality policy, I've approved a 30% refund of $7.04 for your order. It will be returned to your payment method within 3–5 business days.";
-  if (t.includes('late') || t.includes('ORD-005'.toLowerCase()))
-    return "I sincerely apologise for the delay — your order arrived 95 minutes late, which exceeds our 90-minute threshold. I've approved a full refund of $17.47.";
-  if (t.includes('ORD-007'.toLowerCase()) || t.includes('fraud') || t.includes('suspicious'))
-    return "I've reviewed your case and flagged it for human review. Our team will get back to you within 24 hours with a resolution. Thank you for your patience.";
-  if (t.includes('ORD-008'.toLowerCase()) || t.includes('fries'))
-    return "I've checked your order ORD-008 and can see it contained a Margherita Pizza, Caesar Salad, and Sparkling Water. Unfortunately, French Fries were not part of this order, so we're unable to process a refund for them.";
-  if (t.match(/ord-\d+/i))
-    return "I've found your order. Could you describe the issue you experienced? For example: missing item, quality problem, wrong order, or late delivery?";
-  return "I'd be happy to help! Could you share your order ID? You'll find it in your confirmation email (format: ORD-XXX).";
+// Initial render
+renderScenarios("demo_foodco");
+// Fill embed snippet with the actual origin so the snippet works as-is
+{
+  const origin = window.location.origin;
+  document.getElementById("snippet-src").textContent = `"${origin}/widget.js"`;
+  document.getElementById("snippet-api").textContent = `"${origin}/api"`;
 }
-
-// ── Input auto-resize + send on Enter ────────────────────────
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
-});
-
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage(input.value);
-  }
-});
-
-sendBtn.addEventListener('click', () => sendMessage(input.value));
 </script>
 </body>
 </html>
