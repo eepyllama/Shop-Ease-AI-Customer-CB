@@ -41,6 +41,14 @@ _FOOD_SAFETY_KEYWORDS = {
     "food poisoning", "sick", "allergic reaction", "vomiting",
 }
 
+# foreign_object: CRITICAL if customer reports ingesting it or feeling unwell
+_FOREIGN_OBJECT_CRITICAL_KEYWORDS = {
+    "ate", "eaten", "swallowed", "ingested", "bit into",
+    "feeling unwell", "feeling sick", "feel sick", "feel unwell",
+    "nausea", "nauseous", "vomit", "vomiting", "ill", "unwell",
+    "stomach", "throat", "hurt", "pain",
+}
+
 # Delay bands → severity (minutes over promised time)
 _DELAY_BANDS = [
     (15, "LOW"),
@@ -133,7 +141,16 @@ def classify_severity(
             if _item_violates_diet(item, dietary_restriction):
                 return "HIGH", False
 
-    # ── 3. Quality issue with food-safety keywords → HIGH ────────────────────
+    # ── 3. Foreign object (insect, hair, plastic, etc.) ─────────────────────
+    if complaint_type == "foreign_object":
+        desc_norm = _normalize(claim_description)
+        for kw in _FOREIGN_OBJECT_CRITICAL_KEYWORDS:
+            if kw in desc_norm:
+                # Reuse allergen_safety=True to trigger the same immediate-escalation path
+                return "CRITICAL", True
+        return "HIGH", False
+
+    # ── 4. Quality issue with food-safety keywords → HIGH ────────────────────
     if complaint_type == "quality_issue":
         desc_norm = _normalize(claim_description)
         for kw in _FOOD_SAFETY_KEYWORDS:

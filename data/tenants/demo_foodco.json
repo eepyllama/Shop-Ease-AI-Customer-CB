@@ -1,0 +1,43 @@
+{
+  "tenant_id": "demo_foodco",
+  "name": "ShopEase",
+  "industry": "food_delivery",
+  "status": "active",
+  "widget": {
+    "brand_name": "ShopEase Support",
+    "bot_name": "ShopEase",
+    "accent_color": "#2563EB",
+    "bg_color": "#F0F4FA",
+    "logo_emoji": "🛍️",
+    "welcome_message": "Hi! 👋 I'm the ShopEase AI support assistant.\n\nI can help with missing items, late deliveries, wrong orders, dietary issues, quality complaints, and more. What order can I help you with?",
+    "issue_types": [
+      { "id": "missing_item",     "label": "Missing item",     "emoji": "📦", "message": "My order ORD-002 has a missing item — the garlic bread wasn't included." },
+      { "id": "late_delivery",    "label": "Late delivery",    "emoji": "⏱️", "message": "My order ORD-005 arrived very late — over 90 minutes past the promised time." },
+      { "id": "wrong_order",      "label": "Wrong order",      "emoji": "🔄", "message": "I received the wrong order. I ordered sushi (ORD-004) but got a burger." },
+      { "id": "quality_issue",    "label": "Quality issue",    "emoji": "⭐", "message": "The food from ORD-003 arrived cold and tasted stale." },
+      { "id": "dietary_mismatch", "label": "Dietary mismatch", "emoji": "🥗", "message": "I ordered vegetarian but received non-vegetarian food. Order ORD-007." },
+      { "id": "foreign_object",   "label": "Foreign object",   "emoji": "⚠️", "message": "I found a foreign object in my food from order ORD-003." }
+    ],
+    "quick_chips": [
+      { "label": "Missing item",   "message": "I have a missing item in my order" },
+      { "label": "Quality issue",  "message": "My food quality was very poor" },
+      { "label": "Wrong order",    "message": "I received the wrong order" },
+      { "label": "Late delivery",  "message": "My order arrived very late" }
+    ],
+    "currency_symbol": "₹",
+    "currency_code": "INR",
+    "timezone": "Asia/Kolkata",
+    "support_hours": "24/7 AI · Human: Mon–Sat 9am–9pm IST",
+    "media_upload_enabled": true,
+    "media_max_bytes": 8388608
+  },
+  "contact": {
+    "email": "support@shopease.in",
+    "phone": "1800-XXX-XXXX",
+    "twitter": "@ShopEaseSupport"
+  },
+  "escalation": {
+    "human_review_email": "ops@shopease.in",
+    "sla_hours": 24
+  }
+}

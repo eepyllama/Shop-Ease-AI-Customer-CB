@@ -8,6 +8,14 @@ OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "groq")
 LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3-8b-8192")
 
+# ── OpenRouter fallback (used when Groq is unavailable / key expired) ─────────
+# Set OPENROUTER_API_KEY in .env to enable.  Groq is always tried first.
+# Get a key at: https://openrouter.ai/keys
+OPENROUTER_API_KEY: str  = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+# Any OpenRouter model works; gpt-4o-mini gives a good speed/cost trade-off.
+OPENROUTER_MODEL: str    = os.getenv("OPENROUTER_MODEL",    "openai/gpt-4o-mini")
+
 SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER: str = os.getenv("SMTP_USER", "")
@@ -42,3 +50,36 @@ DEV_FAIL_LOUD: bool = os.getenv("DEV_FAIL_LOUD", "false").lower() == "true"
 EVIDENCE_RISK_THRESHOLD: int = int(os.getenv("EVIDENCE_RISK_THRESHOLD", "40"))
 # Groq vision model used for image analysis (must be a vision-capable model)
 VISION_MODEL_ID: str = os.getenv("VISION_MODEL_ID", "meta-llama/llama-4-scout-17b-16e-instruct")
+
+# ── Late-delivery severity thresholds (minutes over promised ETA) ─────────────
+# Delays shorter than NONE_MIN are not considered a delay at all.
+LATE_DELIVERY_NONE_MIN: int    = int(os.getenv("LATE_DELIVERY_NONE_MIN",   "10"))
+LATE_DELIVERY_LOW_MIN: int     = int(os.getenv("LATE_DELIVERY_LOW_MIN",    "30"))
+LATE_DELIVERY_MEDIUM_MIN: int  = int(os.getenv("LATE_DELIVERY_MEDIUM_MIN", "60"))
+
+# ── ViT Indian food classifier (optional second opinion for wrong_order) ──────
+# Model: DrishtiSharma/finetuned-ViT-Indian-Food-Classification-v3
+# Labels below MUST match the model's actual output labels exactly.
+# Verify against the model card before deploying; add/remove entries freely.
+VIT_FOOD_MODEL_ID: str = os.getenv(
+    "VIT_FOOD_MODEL_ID",
+    "DrishtiSharma/finetuned-ViT-Indian-Food-Classification-v3",
+)
+
+# Maps menu dish name → expected ViT label (only dishes known to the classifier).
+VIT_LABEL_MAP: dict[str, str] = {
+    "Butter Chicken":       "butter_chicken",
+    "Chicken Tikka Masala": "chicken_tikka_masala",
+    "Paneer Butter Masala": "paneer_butter_masala",
+    "Palak Paneer":         "palak_paneer",
+    "Paneer Tikka":         "paneer_tikka",
+    "Dal Tadka":            "dal_tadka",
+    "Chole Bhature":        "chole_bhature",
+    "Pav Bhaji":            "pav_bhaji",
+    "Masala Dosa":          "masala_dosa",
+    "Idli Sambar":          "idli_sambar",
+    "Chicken Biryani":      "chicken_biryani",
+    "Vegetable Biryani":    "veg_biryani",
+    "Gulab Jamun":          "gulab_jamun",
+    "Samosa":               "samosa",
+}

@@ -1,14 +1,19 @@
 """
 One-time setup script: creates SQLite DB and seeds mock orders from data/orders.json.
 Run once before starting the server: python setup_db.py
+
+Also creates Phase-1 tables (tenants, tenant_configs, cases) and seeds
+tenant configs from data/tenants/*.json.
 """
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import DB_PATH
 
-ORDERS_FILE = Path("data/orders.json")
+ORDERS_FILE  = Path("data/orders.json")
+TENANTS_DIR  = Path("data/tenants")
 
 
 def setup():
@@ -91,6 +96,76 @@ def setup():
             created_at  TEXT NOT NULL
         )
     """)
+
+    # ── Phase 1: multi-tenant tables ──────────────────────────────────────────
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tenants (
+            tenant_id   TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            industry    TEXT,
+            status      TEXT NOT NULL DEFAULT 'active',
+            created_at  TEXT NOT NULL
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tenant_configs (
+            tenant_id   TEXT PRIMARY KEY,
+            config_json TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS cases (
+            case_id                 TEXT PRIMARY KEY,
+            tenant_id               TEXT NOT NULL,
+            session_id              TEXT NOT NULL,
+            customer_id             TEXT,
+            reference_id            TEXT,
+            issue_type              TEXT,
+            claim_text              TEXT,
+            status                  TEXT NOT NULL DEFAULT 'new',
+            risk_score              INTEGER DEFAULT 0,
+            evidence_confidence     INTEGER DEFAULT 0,
+            recommended_resolution  TEXT,
+            actual_resolution       TEXT,
+            escalation_status       TEXT,
+            created_at              TEXT NOT NULL,
+            updated_at              TEXT NOT NULL,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
+        )
+    """)
+
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cases_tenant ON cases(tenant_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cases_session ON cases(session_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status)"
+    )
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS confirmations (
+            conf_id         TEXT PRIMARY KEY,
+            case_id         TEXT NOT NULL,
+            session_id      TEXT NOT NULL,
+            action_type     TEXT NOT NULL,
+            amount          REAL NOT NULL DEFAULT 0,
+            currency        TEXT NOT NULL DEFAULT 'INR',
+            status          TEXT NOT NULL DEFAULT 'pending',
+            expires_at      TEXT NOT NULL,
+            created_at      TEXT NOT NULL,
+            updated_at      TEXT NOT NULL
+        )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_conf_session ON confirmations(session_id)"
+    )
 
     # ── Policies table — (issue_type, severity) composite PK ─────────────────
     # Drop and recreate so the composite-key schema is applied cleanly.
@@ -228,6 +303,47 @@ def setup():
     conn.commit()
     conn.close()
     print(f"✓ Database created at '{DB_PATH}' with {len(data.get('orders', []))} orders.")
+
+    # ── Seed tenants from data/tenants/*.json ─────────────────────────────────
+    _seed_tenants()
+    print("✓ Tenants seeded.")
+
+
+def _seed_tenants() -> None:
+    """Load each data/tenants/<id>.json and upsert into DB."""
+    if not TENANTS_DIR.exists():
+        return
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+
+    for path in sorted(TENANTS_DIR.glob("*.json")):
+        try:
+            cfg = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"  ⚠ Could not load {path.name}: {e}")
+            continue
+
+        tid = cfg.get("tenant_id", path.stem)
+        name = cfg.get("name", tid)
+        industry = cfg.get("industry", "general")
+        status = cfg.get("status", "active")
+
+        cur.execute("""
+            INSERT OR REPLACE INTO tenants (tenant_id, name, industry, status, created_at)
+            VALUES (?,?,?,?,?)
+        """, (tid, name, industry, status, now))
+
+        cur.execute("""
+            INSERT OR REPLACE INTO tenant_configs (tenant_id, config_json, updated_at)
+            VALUES (?,?,?)
+        """, (tid, json.dumps(cfg), now))
+
+        print(f"  ✓ Tenant: {tid} ({name})")
+
+    conn.commit()
+    conn.close()
 
 
 if __name__ == "__main__":

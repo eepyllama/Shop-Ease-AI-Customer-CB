@@ -18,8 +18,13 @@ MATRIX: dict[tuple[str, str], list[str]] = {
     # HIGH defaults
     ("*",             "HIGH"):   ["replacement", "full_refund", "escalate"],
     # HIGH overrides — delivery/payment never include replacement
-    ("late_delivery", "HIGH"):   ["full_refund", "coupon", "escalate"],
-    ("payment_issue", "HIGH"):   ["full_refund", "coupon", "escalate"],
+    ("late_delivery",   "HIGH"):   ["full_refund", "coupon", "escalate"],
+    ("payment_issue",   "HIGH"):   ["full_refund", "coupon", "escalate"],
+    # foreign_object: full_refund always offered; replacement valid (re-make without hazard)
+    ("foreign_object",  "HIGH"):   ["full_refund", "replacement", "escalate"],
+    ("foreign_object",  "MEDIUM"): ["full_refund", "replacement"],
+    ("foreign_object",  "LOW"):    ["coupon", "store_credit"],
+    # CRITICAL → [] (returns empty → caller escalates immediately)
 
     # MEDIUM defaults
     ("*",             "MEDIUM"): ["replacement", "partial_refund"],
@@ -34,6 +39,8 @@ MATRIX: dict[tuple[str, str], list[str]] = {
 
 # These complaint types never include replacement in any severity
 _NO_REPLACEMENT: frozenset[str] = frozenset({"late_delivery", "payment_issue"})
+
+# foreign_object uses complaint_type-specific overrides above so no extra guard needed
 
 
 def get_options(complaint_type: str, severity: str) -> list[str]:

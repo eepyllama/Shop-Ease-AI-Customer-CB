@@ -1,0 +1,43 @@
+{
+  "tenant_id": "fashionco",
+  "name": "FashionCo",
+  "industry": "fashion_retail",
+  "status": "active",
+  "widget": {
+    "brand_name": "FashionCo Support",
+    "bot_name": "FashionCo",
+    "accent_color": "#7C3AED",
+    "bg_color": "#F5F3FF",
+    "logo_emoji": "👗",
+    "welcome_message": "Hi! 👋 Welcome to FashionCo Support.\n\nI can help with damaged items, wrong sizes, missing packages, returns, and refunds. What's your order number?",
+    "issue_types": [
+      { "id": "damaged_item",    "label": "Damaged item",    "emoji": "💔", "message": "My item arrived damaged." },
+      { "id": "wrong_item",      "label": "Wrong item",      "emoji": "🔄", "message": "I received the wrong item." },
+      { "id": "missing_package", "label": "Missing package", "emoji": "📦", "message": "My package never arrived." },
+      { "id": "wrong_size",      "label": "Wrong size",      "emoji": "📐", "message": "I received the wrong size." },
+      { "id": "return_request",  "label": "Return request",  "emoji": "↩️", "message": "I'd like to return an item." },
+      { "id": "refund_status",   "label": "Refund status",   "emoji": "💰", "message": "What's the status of my refund?" }
+    ],
+    "quick_chips": [
+      { "label": "Damaged item",   "message": "My item arrived damaged" },
+      { "label": "Wrong item",     "message": "I received the wrong item" },
+      { "label": "Missing package","message": "My package never arrived" },
+      { "label": "Return",         "message": "I want to return an item" }
+    ],
+    "currency_symbol": "₹",
+    "currency_code": "INR",
+    "timezone": "Asia/Kolkata",
+    "support_hours": "Mon–Sat 9am–6pm IST",
+    "media_upload_enabled": true,
+    "media_max_bytes": 8388608
+  },
+  "contact": {
+    "email": "support@fashionco.in",
+    "phone": "1800-YYY-YYYY",
+    "twitter": "@FashionCoSupport"
+  },
+  "escalation": {
+    "human_review_email": "ops@fashionco.in",
+    "sla_hours": 48
+  }
+}

@@ -2,499 +2,736 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ResolveIQ — Embeddable Support Widget Demo</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700&display=swap">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ShopEase — Customer Support</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
-/* ── DEMO PAGE ─────────────────────────────────────────────── */
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --brand:#2563EB;
-  --brand-dark:#1D4ED8;
-  --bg:#F1F5F9;
-  --surface:#fff;
-  --fg:#0F172A;
-  --fg-2:#475569;
-  --fg-3:#94A3B8;
-  --border:#E2E8F0;
+/* ── Design tokens ───────────────────────────────────────────── */
+:root {
+  --bg:        #F1F5F9;
+  --surface:   #FFFFFF;
+  --surface-2: #F7F9FD;
+  --accent:    #2563EB;
+  --accent-dk: #1D4ED8;
+  --accent-lt: #EFF6FF;
+  --fg:        #0F172A;
+  --fg-2:      #475569;
+  --fg-3:      #94A3B8;
+  --border:    #E2E8F0;
+  --green:     #059669;
+  --green-lt:  #ECFDF5;
+  --orange:    #D97706;
+  --orange-lt: #FFFBEB;
+  --red:       #DC2626;
+  --red-lt:    #FEF2F2;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,.07), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-md: 0 4px 14px rgba(15,23,42,.1), 0 2px 6px rgba(15,23,42,.06);
+  --shadow-lg: 0 20px 56px rgba(15,23,42,.18), 0 4px 16px rgba(15,23,42,.08);
+  --r:         10px;
+  color-scheme: light;
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
-
-.demo-page{max-width:900px;margin:0 auto;padding:48px 24px 160px}
-.demo-hero{text-align:center;margin-bottom:48px}
-.demo-badge{display:inline-block;background:rgba(37,99,235,.1);color:var(--brand);font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;margin-bottom:16px}
-.demo-title{font-family:'Outfit',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.8px;margin-bottom:12px}
-.demo-sub{font-size:16px;color:var(--fg-2);max-width:520px;margin:0 auto;line-height:1.6}
-
-.demo-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
-.step-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
-.step-n{width:28px;height:28px;background:rgba(37,99,235,.1);color:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-bottom:12px}
-.step-t{font-weight:600;font-size:14px;margin-bottom:6px}
-.step-d{font-size:13px;color:var(--fg-2);line-height:1.5}
-
-.embed-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
-.embed-title{font-weight:600;font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-pre{background:#0F172A;color:#E2E8F0;padding:16px;border-radius:8px;font-size:13px;overflow-x:auto;line-height:1.6}
-.keyword{color:#93C5FD} .string{color:#86EFAC} .comment{color:#64748B}
-
-/* ── CHAT WIDGET ──────────────────────────────────────────── */
-#riq-launcher{
-  position:fixed;bottom:24px;right:24px;
-  width:56px;height:56px;
-  background:var(--brand);
-  border-radius:50%;
-  border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 14px rgba(37,99,235,.4);
-  transition:all .2s;
-  z-index:9999;
-}
-#riq-launcher:hover{background:var(--brand-dark);transform:scale(1.05)}
-#riq-launcher svg{transition:all .2s}
-#riq-launcher.open .icon-chat{display:none}
-#riq-launcher.open .icon-close{display:block!important}
-
-#riq-widget{
-  position:fixed;bottom:92px;right:24px;
-  width:380px;max-width:calc(100vw - 32px);
-  height:580px;max-height:calc(100vh - 120px);
-  background:#fff;
-  border-radius:16px;
-  box-shadow:0 20px 60px rgba(0,0,0,.15),0 4px 16px rgba(0,0,0,.08);
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  z-index:9998;
-  transform:scale(.95) translateY(12px);
-  opacity:0;
-  pointer-events:none;
-  transition:all .22s cubic-bezier(.34,1.56,.64,1);
-}
-#riq-widget.open{
-  transform:scale(1) translateY(0);
-  opacity:1;
-  pointer-events:all;
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#0D1117; --surface:#161B22; --surface-2:#1C2230;
+  --accent-lt:#1E3A5F; --fg:#E2E8F0; --fg-2:#94A3B8; --fg-3:#475569;
+  --border:#2D3748; --green-lt:#052E16; --orange-lt:#1C1408; --red-lt:#1A0A0A;
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --bg:#0D1117; --surface:#161B22; --surface-2:#1C2230;
+  --accent-lt:#1E3A5F; --fg:#E2E8F0; --fg-2:#94A3B8; --fg-3:#475569;
+  --border:#2D3748; --green-lt:#052E16; --orange-lt:#1C1408; --red-lt:#1A0A0A;
+  color-scheme: dark;
 }
 
-/* widget header */
-.w-hdr{
-  background:var(--brand);
-  padding:16px 18px;
-  display:flex;align-items:center;gap:12px;
-  flex-shrink:0;
-}
-.w-avatar{
-  width:36px;height:36px;
-  background:rgba(255,255,255,.2);
-  border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;flex-shrink:0;
-}
-.w-info{flex:1;min-width:0}
-.w-name{font-weight:700;font-size:14px;color:#fff;font-family:'Outfit',sans-serif}
-.w-status{font-size:12px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:5px}
-.w-dot{width:6px;height:6px;background:#4ADE80;border-radius:50%}
-.w-dot.offline{background:#FCA5A5}
-.w-close{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:4px;border-radius:4px;transition:color .15s;font-size:18px;line-height:1}
-.w-close:hover{color:#fff}
-
-/* messages */
-.w-msgs{
-  flex:1;overflow-y:auto;
-  padding:16px;
-  display:flex;flex-direction:column;gap:12px;
-  scroll-behavior:smooth;
-}
-.w-msgs::-webkit-scrollbar{width:4px}
-.w-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-
-.msg-row{display:flex;gap:8px;align-items:flex-end}
-.msg-row.user{flex-direction:row-reverse}
-
-.msg-av{
-  width:26px;height:26px;border-radius:50%;
-  flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:700;
-}
-.msg-av.bot{background:rgba(37,99,235,.1);color:var(--brand)}
-.msg-av.usr{background:#E2E8F0;color:var(--fg-2)}
-
-.msg-bub{
-  max-width:82%;
-  padding:10px 13px;
-  border-radius:14px;
-  font-size:13.5px;
-  line-height:1.55;
-}
-.msg-row.bot .msg-bub{
-  background:#F1F5F9;
-  color:var(--fg);
-  border-radius:2px 14px 14px 14px;
-}
-.msg-row.user .msg-bub{
-  background:var(--brand);
-  color:#fff;
-  border-radius:14px 2px 14px 14px;
-}
-.msg-time{font-size:10.5px;color:var(--fg-3);margin-top:4px}
-.msg-row.user .msg-time{text-align:right}
-
-/* decision badge inside message */
-.decision-chip{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:3px 9px;border-radius:99px;
-  font-size:11px;font-weight:700;
-  margin-top:8px;
-}
-.dc-full_refund,.dc-partial_refund{background:#DCFCE7;color:#166534}
-.dc-coupon,.dc-store_credit{background:#EFF6FF;color:#1D4ED8}
-.dc-replacement{background:#F3E8FF;color:#6B21A8}
-.dc-apology,.dc-explanation,.dc-priority_handling{background:#F1F5F9;color:#475569}
-.dc-deny{background:#FEE2E2;color:#991B1B}
-.dc-escalate{background:#FEF9C3;color:#854D0E}
-
-/* ── Offer action buttons ───────────────────────────────────── */
-.offer-actions{
-  display:flex;flex-wrap:wrap;gap:7px;
-  margin-top:10px;
-}
-.offer-btn{
-  padding:6px 14px;border-radius:8px;
-  font-size:12px;font-weight:600;cursor:pointer;
-  border:1.5px solid transparent;
-  transition:all .14s;line-height:1.3;
-}
-.offer-btn.accept{
-  background:var(--brand);color:#fff;
-  border-color:var(--brand);
-}
-.offer-btn.accept:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
-.offer-btn.decline{
-  background:#fff;color:var(--fg-2);
-  border-color:var(--border);
-}
-.offer-btn.decline:hover{border-color:var(--brand);color:var(--brand)}
-.offer-btn:disabled{opacity:.45;cursor:default;pointer-events:none}
-
-/* ── Multi-option picker card ──────────────────────────────── */
-.opt-picker{
-  margin-top:10px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  overflow:hidden;
-}
-.opt-picker-label{
-  font-size:11px;font-weight:600;color:var(--fg-3);
-  padding:7px 12px 5px;letter-spacing:.04em;
-  border-bottom:1px solid var(--border);
-  background:#F8FAFC;
-}
-.opt-btn{
-  width:100%;text-align:left;
-  padding:9px 12px;
-  font-size:13px;font-weight:500;
-  background:#fff;border:none;cursor:pointer;
-  color:var(--fg);transition:background .12s;
-  display:flex;align-items:center;gap:8px;
-  border-bottom:1px solid var(--border);
-}
-.opt-btn:last-child{border-bottom:none}
-.opt-btn:hover{background:#EFF6FF;color:var(--brand)}
-.opt-btn:disabled{opacity:.45;cursor:default;pointer-events:none;background:#F8FAFC}
-.opt-btn .opt-icon{
-  width:20px;height:20px;border-radius:50%;
-  background:rgba(37,99,235,.08);
-  display:flex;align-items:center;justify-content:center;
-  font-size:11px;flex-shrink:0;
-}
-.opt-btn.human{color:#92400E}
-.opt-btn.human .opt-icon{background:rgba(217,119,6,.1)}
-.opt-btn.human:hover{background:#FFFBEB}
-
-/* ── Escalation / reset ────────────────────────────────────── */
-.escalation-card{
-  background:#FFFBEB;border:1px solid #FDE68A;
-  border-radius:10px;padding:12px;margin-top:10px;
-}
-.escalation-card p{font-size:12.5px;color:#92400E;line-height:1.5;margin-bottom:10px}
-.esc-new-btn{
-  width:100%;padding:7px;border-radius:7px;
-  background:#2563EB;color:#fff;border:none;
-  font-size:12px;font-weight:600;cursor:pointer;
-  transition:background .14s;
-}
-.esc-new-btn:hover{background:var(--brand-dark)}
-
-/* evidence uploader */
-.evidence-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.ev-upload-btn{flex:1 1 140px}
-.ev-status{
-  width:100%;font-size:12px;color:var(--fg-2);
-  padding:4px 0;font-style:italic;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-/* typing indicator */
-.typing{display:flex;align-items:center;gap:4px;padding:8px 4px}
-.typing span{
-  width:7px;height:7px;background:var(--fg-3);border-radius:50%;
-  animation:bounce .8s infinite ease-in-out;
+/* ── Nav ─────────────────────────────────────────────────────── */
+.nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
 }
-.typing span:nth-child(2){animation-delay:.15s}
-.typing span:nth-child(3){animation-delay:.3s}
-@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+.nav-logo { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: -.5px; }
+.nav-logo span { color: var(--fg); }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { font-size: 13.5px; font-weight: 500; color: var(--fg-2); text-decoration: none; }
+.nav-links a:hover { color: var(--accent); }
+.nav-cta { background: var(--accent); color: #fff !important; padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; text-decoration: none; }
+.nav-cta:hover { background: var(--accent-dk) !important; }
 
-/* input area */
-.w-in{
-  padding:12px;
-  border-top:1px solid var(--border);
-  display:flex;gap:8px;align-items:flex-end;
-  flex-shrink:0;
-}
-.w-textarea{
-  flex:1;
-  background:#F8FAFC;border:1px solid var(--border);
-  border-radius:10px;
-  padding:9px 13px;
-  font-size:13.5px;color:var(--fg);
-  font-family:inherit;resize:none;
-  outline:none;line-height:1.45;
-  max-height:100px;overflow-y:auto;
-  transition:border-color .15s;
-}
-.w-textarea:focus{border-color:var(--brand)}
-#w-cam-input{display:none}
-.w-cam{
-  width:36px;height:36px;flex-shrink:0;
-  background:#F1F5F9;border:1px solid var(--border);border-radius:9px;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:background .15s,border-color .15s;
-  position:relative;user-select:none;
-}
-.w-cam:hover{background:#E2E8F0;border-color:#CBD5E1}
-.w-cam.cam-disabled{opacity:.45;cursor:default;pointer-events:none}
-/* pulsing badge when evidence upload is required */
-.w-cam.ev-needed::after{
-  content:'';position:absolute;top:-3px;right:-3px;
-  width:9px;height:9px;background:#EF4444;border-radius:50%;
-  border:2px solid #fff;
-  animation:ev-pulse 1.4s ease-in-out infinite;
-}
-@keyframes ev-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
-.w-send{
-  width:36px;height:36px;flex-shrink:0;
-  background:var(--brand);border:none;border-radius:9px;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:background .15s;
-}
-.w-send:hover{background:var(--brand-dark)}
-.w-send:disabled{opacity:.5;cursor:default}
+/* ── Page wrapper ─────────────────────────────────────────────── */
+.page { max-width: 960px; margin: 0 auto; padding-inline: 20px; padding-block: 0 96px; }
 
-/* quick-reply chips */
-.quick-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
-.qc{
-  background:#EFF6FF;color:var(--brand);
-  border:1px solid rgba(37,99,235,.15);
-  border-radius:99px;padding:5px 12px;
-  font-size:12px;font-weight:500;cursor:pointer;
-  transition:all .12s;white-space:nowrap;
+/* ── Hero ────────────────────────────────────────────────────── */
+.hero {
+  text-align: center; padding-block: 60px 48px;
+  background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 55%, #3B82F6 100%);
+  margin-inline: -20px; padding-inline: 20px;
+  border-radius: 0 0 20px 20px;
 }
-.qc:hover{background:var(--brand);color:#fff}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: #fff; background: rgba(255,255,255,.18); padding: 4px 12px; border-radius: 99px; margin-bottom: 16px;
+}
+.hero h1 { font-family: 'Sora', sans-serif; font-size: clamp(26px, 5vw, 40px); font-weight: 800; line-height: 1.15; text-wrap: balance; color: #fff; }
+.hero > p { font-size: 16px; color: rgba(255,255,255,.88); margin-top: 10px; max-width: 480px; margin-inline: auto; }
+.search-wrap { max-width: 520px; margin: 24px auto 0; position: relative; }
+.search-wrap input {
+  width: 100%; padding: 14px 50px 14px 18px; border: 2px solid var(--border); border-radius: var(--r);
+  font-size: 15px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--fg); outline: none;
+  box-shadow: var(--shadow-sm); transition: border-color .15s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-wrap input::placeholder { color: var(--fg-3); }
+.search-btn {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: var(--accent); border: none; border-radius: 7px; width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff;
+}
 
-/* powered-by footer */
-.w-foot{
-  padding:6px 14px 10px;text-align:center;
-  font-size:11px;color:var(--fg-3);
-  flex-shrink:0;
+/* ── Section label ───────────────────────────────────────────── */
+.section-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--fg-3); margin-bottom: 14px; margin-top: 40px;
 }
-.w-foot a{color:var(--fg-3);text-decoration:none}
 
-/* ── responsive ── */
-@media(max-width:480px){
-  #riq-widget{width:calc(100vw - 16px);right:8px;bottom:80px;height:calc(100vh - 104px)}
-  .demo-steps{grid-template-columns:1fr}
+/* ── Issues grid ─────────────────────────────────────────────── */
+.issues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.issue-card {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r);
+  padding: 18px 16px; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s;
+  display: flex; flex-direction: column; gap: 8px; text-align: left;
 }
+.issue-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.issue-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.issue-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.issue-card h3 { font-size: 14px; font-weight: 600; color: var(--fg); }
+.issue-card p  { font-size: 12.5px; color: var(--fg-2); line-height: 1.4; }
+.issue-arrow { color: var(--accent); font-size: 16px; align-self: flex-end; margin-top: auto; }
+
+/* ── Order tracker ───────────────────────────────────────────── */
+.tracker-card {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r);
+  padding: 24px; margin-top: 12px; box-shadow: var(--shadow-sm);
+}
+.tracker-card h2 { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.tracker-card > p { font-size: 13.5px; color: var(--fg-2); margin-bottom: 16px; }
+.tracker-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.tracker-row input {
+  flex: 1; min-width: 160px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--fg); outline: none; transition: border-color .15s;
+}
+.tracker-row input:focus { border-color: var(--accent); background: var(--surface); }
+.tracker-row input::placeholder { color: var(--fg-3); }
+.tracker-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 20px;
+  font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+}
+.tracker-btn:hover { background: var(--accent-dk); }
+.order-result { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; display: none; }
+.order-result.show { display: block; }
+.order-meta { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.order-field { min-width: 120px; }
+.order-field label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); display: block; margin-bottom: 2px; }
+.order-field span { font-size: 14px; font-weight: 600; color: var(--fg); }
+.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+.pill-delivered { background: var(--green-lt); color: var(--green); }
+.pill-late      { background: var(--orange-lt); color: var(--orange); }
+.pill-issue     { background: var(--red-lt);    color: var(--red); }
+.pill-progress  { background: var(--accent-lt); color: var(--accent); }
+.order-timeline { margin-top: 14px; display: flex; gap: 0; position: relative; }
+.timeline-step { flex: 1; text-align: center; position: relative; }
+.timeline-step::before { content: ''; position: absolute; top: 9px; left: 50%; right: -50%; height: 2px; background: var(--border); z-index: 0; }
+.timeline-step:last-child::before { display: none; }
+.timeline-step.done::before { background: var(--green); }
+.tl-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--border); margin: 0 auto 6px; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
+.timeline-step.done .tl-dot { background: var(--green); }
+.timeline-step.done .tl-dot::after { content: '✓'; font-size: 10px; color: #fff; font-weight: 700; }
+.timeline-step.active .tl-dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-lt); }
+.timeline-step.active .tl-dot::after { content: ''; width: 8px; height: 8px; background: #fff; border-radius: 50%; }
+.tl-label { font-size: 11px; color: var(--fg-2); }
+.timeline-step.done .tl-label { color: var(--green); font-weight: 600; }
+.timeline-step.active .tl-label { color: var(--accent); font-weight: 600; }
+.order-actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.action-btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1.5px solid transparent; transition: all .15s; }
+.action-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.action-btn.primary:hover { background: var(--accent-dk); }
+.action-btn.secondary { background: var(--surface); color: var(--fg); border-color: var(--border); }
+.action-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── FAQ ─────────────────────────────────────────────────────── */
+.faq-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.faq-item { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r); overflow: hidden; transition: border-color .15s; }
+.faq-item.open { border-color: var(--accent); }
+.faq-q { width: 100%; background: none; border: none; padding: 16px 18px; text-align: left; font-size: 14.5px; font-weight: 600; font-family: 'DM Sans', sans-serif; color: var(--fg); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.faq-chevron { font-size: 18px; color: var(--fg-3); transition: transform .2s; flex-shrink: 0; }
+.faq-item.open .faq-chevron { transform: rotate(180deg); color: var(--accent); }
+.faq-a { font-size: 14px; color: var(--fg-2); line-height: 1.65; max-height: 0; overflow: hidden; transition: max-height .25s ease, padding .25s; padding: 0 18px; }
+.faq-item.open .faq-a { max-height: 320px; padding: 0 18px 16px; }
+
+/* ── Contact strip ───────────────────────────────────────────── */
+.contact-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+.contact-tile { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r); padding: 20px 18px; display: flex; flex-direction: column; gap: 6px; }
+.contact-tile .ct-icon { font-size: 22px; }
+.contact-tile h3 { font-size: 14px; font-weight: 700; }
+.contact-tile p  { font-size: 12.5px; color: var(--fg-2); }
+.contact-tile .ct-detail { font-size: 13px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+
+/* ── Chat launcher button ────────────────────────────────────── */
+#riq-btn {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(37,99,235,.4), 0 0 0 0 rgba(37,99,235,.3);
+  transition: transform .2s, box-shadow .2s;
+  animation: riq-pulse 3s ease-in-out infinite;
+}
+@keyframes riq-pulse {
+  0%,100% { box-shadow: 0 4px 20px rgba(37,99,235,.4), 0 0 0 0 rgba(37,99,235,.3); }
+  50%      { box-shadow: 0 4px 20px rgba(37,99,235,.4), 0 0 0 10px rgba(37,99,235,0); }
+}
+#riq-btn:hover { transform: scale(1.07); animation: none; box-shadow: 0 6px 24px rgba(37,99,235,.5); }
+#riq-btn.open  { animation: none; }
+
+/* ── Chat panel ──────────────────────────────────────────────── */
+#riq-panel {
+  position: fixed; bottom: 96px; right: 24px; z-index: 9998;
+  width: 370px; max-width: calc(100vw - 32px);
+  height: 570px; max-height: calc(100vh - 116px);
+  background: var(--surface); border-radius: 18px;
+  overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  transition: opacity .22s, transform .22s;
+  opacity: 0; transform: translateY(16px) scale(.96); pointer-events: none;
+}
+#riq-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+
+/* Panel header */
+.riq-hdr { background: var(--accent); padding: 16px; display: flex; align-items: center; gap: 11px; flex-shrink: 0; }
+.riq-hdr-av { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.riq-hdr-info { flex: 1; min-width: 0; }
+.riq-hdr-name { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.riq-hdr-sub  { font-size: 11.5px; color: rgba(255,255,255,.72); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.riq-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; }
+.riq-status-dot.offline { background: #fca5a5; }
+.riq-close { background: none; border: none; color: rgba(255,255,255,.75); cursor: pointer; font-size: 18px; padding: 4px; line-height: 1; flex-shrink: 0; }
+
+/* Messages area */
+.riq-msgs { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); }
+.riq-msgs::-webkit-scrollbar { width: 3px; }
+.riq-msgs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.riq-row { display: flex; gap: 8px; align-items: flex-end; }
+.riq-row.user { flex-direction: row-reverse; }
+.riq-av { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.riq-row.bot  .riq-av { background: var(--accent-lt); color: var(--accent); }
+.riq-row.user .riq-av { background: var(--border); color: var(--fg-2); }
+.riq-bub-wrap { max-width: 82%; display: flex; flex-direction: column; }
+.riq-bub { padding: 10px 13px; border-radius: 14px; font-size: 13.5px; line-height: 1.55; }
+.riq-row.bot  .riq-bub { background: var(--surface); color: var(--fg); border-radius: 4px 14px 14px 14px; box-shadow: var(--shadow-sm); }
+.riq-row.user .riq-bub { background: var(--accent); color: #fff; border-radius: 14px 4px 14px 14px; }
+.riq-ts { font-size: 10px; color: var(--fg-3); margin-top: 3px; padding-inline: 2px; }
+.riq-row.user .riq-ts { text-align: right; }
+
+/* Decision chip */
+.decision-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; margin-top: 8px; }
+.dc-full_refund,.dc-partial_refund { background: var(--green-lt);  color: var(--green); }
+.dc-coupon,.dc-store_credit        { background: var(--accent-lt); color: var(--accent); }
+.dc-replacement                    { background: #F3E8FF; color: #6B21A8; }
+.dc-apology,.dc-explanation,.dc-priority_handling { background: var(--surface-2); color: var(--fg-2); }
+.dc-deny                           { background: var(--red-lt);    color: var(--red); }
+.dc-escalate                       { background: var(--orange-lt); color: var(--orange); }
+
+/* Offer buttons */
+.offer-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.offer-btn { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all .14s; line-height: 1.3; font-family: 'DM Sans', sans-serif; }
+.offer-btn.accept  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.offer-btn.accept:hover  { background: var(--accent-dk); border-color: var(--accent-dk); }
+.offer-btn.decline { background: var(--surface); color: var(--fg-2); border-color: var(--border); }
+.offer-btn.decline:hover { border-color: var(--accent); color: var(--accent); }
+.offer-btn:disabled { opacity: .45; cursor: default; pointer-events: none; }
+
+/* Multi-option picker */
+.opt-picker { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.opt-picker-label { font-size: 11px; font-weight: 600; color: var(--fg-3); padding: 7px 12px 5px; letter-spacing: .04em; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.opt-btn { width: 100%; text-align: left; padding: 9px 12px; font-size: 13px; font-weight: 500; background: var(--surface); border: none; cursor: pointer; color: var(--fg); transition: background .12s; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); font-family: 'DM Sans', sans-serif; }
+.opt-btn:last-child { border-bottom: none; }
+.opt-btn:hover { background: var(--accent-lt); color: var(--accent); }
+.opt-btn:disabled { opacity: .45; cursor: default; pointer-events: none; background: var(--surface-2); }
+.opt-btn .opt-icon { width: 20px; height: 20px; border-radius: 50%; background: rgba(37,99,235,.08); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+.opt-btn.human { color: var(--orange); }
+.opt-btn.human .opt-icon { background: var(--orange-lt); }
+.opt-btn.human:hover { background: var(--orange-lt); }
+
+/* Evidence uploader */
+.evidence-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ev-upload-btn { flex: 1 1 140px; }
+.ev-status { width: 100%; font-size: 12px; color: var(--fg-2); padding: 4px 0; font-style: italic; }
+
+/* Escalation card */
+.escalation-card { background: var(--orange-lt); border: 1px solid #FDE68A; border-radius: 10px; padding: 12px; margin-top: 10px; }
+.escalation-card p { font-size: 12.5px; color: #92400E; line-height: 1.5; margin-bottom: 10px; }
+.esc-new-btn { width: 100%; padding: 7px; border-radius: 7px; background: var(--accent); color: #fff; border: none; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.esc-new-btn:hover { background: var(--accent-dk); }
+
+/* Typing indicator */
+.riq-typing { display: flex; align-items: center; gap: 5px; padding: 4px 0; }
+.riq-typing span { width: 7px; height: 7px; background: var(--fg-3); border-radius: 50%; animation: riq-b .85s infinite ease-in-out; }
+.riq-typing span:nth-child(2) { animation-delay: .17s; }
+.riq-typing span:nth-child(3) { animation-delay: .34s; }
+@keyframes riq-b { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-7px)} }
+
+/* Quick chips */
+.riq-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; background: var(--surface-2); border-top: 1px solid var(--border); flex-shrink: 0; }
+.riq-chip-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 500; color: var(--accent); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .12s; white-space: nowrap; }
+.riq-chip-btn:hover { background: var(--accent-lt); border-color: var(--accent); }
+
+/* Input area */
+.riq-inp-row { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--surface); flex-shrink: 0; align-items: flex-end; }
+#w-cam-input { display: none; }
+.w-cam {
+  width: 36px; height: 36px; flex-shrink: 0; background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s; position: relative; user-select: none;
+}
+.w-cam:hover { background: var(--border); }
+.w-cam.cam-disabled { opacity: .45; cursor: default; pointer-events: none; }
+.w-cam.ev-needed::after {
+  content: ''; position: absolute; top: -3px; right: -3px;
+  width: 9px; height: 9px; background: var(--red); border-radius: 50%;
+  border: 2px solid var(--surface); animation: ev-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ev-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
+.riq-inp { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; color: var(--fg); resize: none; outline: none; max-height: 80px; overflow-y: auto; transition: border-color .15s; font-family: 'DM Sans', sans-serif; }
+.riq-inp:focus { border-color: var(--accent); }
+.riq-inp::placeholder { color: var(--fg-3); }
+.riq-send { width: 36px; height: 36px; flex-shrink: 0; background: var(--accent); border: none; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; color: #fff; }
+.riq-send:hover { background: var(--accent-dk); }
+.riq-send:disabled { opacity: .5; cursor: default; }
+.riq-footer { text-align: center; font-size: 10.5px; color: var(--fg-3); padding: 4px 0 8px; background: var(--surface); flex-shrink: 0; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  #riq-panel { width: calc(100vw - 16px); right: 8px; bottom: 80px; height: calc(100vh - 100px); }
+  #riq-btn   { bottom: 16px; right: 16px; }
+  .nav-links { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { #riq-btn, .w-cam.ev-needed::after { animation: none; } }
 </style>
 </head>
 <body>
 
-<!-- ── DEMO PAGE CONTENT ───────────────────────────────────────────────────── -->
-<div class="demo-page">
-  <div class="demo-hero">
-    <div class="demo-badge">ResolveIQ · Embeddable Chat Widget</div>
-    <h1 class="demo-title">Customer support<br>that actually resolves.</h1>
-    <p class="demo-sub">Drop one script tag into your website. The AI handles missing items, quality issues, wrong orders, and late deliveries — and escalates the ones it shouldn't touch.</p>
+<!-- ── Navigation ─────────────────────────────────────────────── -->
+<nav class="nav">
+  <div class="nav-logo">Shop<span>Ease</span></div>
+  <div class="nav-links">
+    <a href="#">My Orders</a>
+    <a href="#">Returns</a>
+    <a href="#">Track Package</a>
+    <a class="nav-cta" href="#">Sign In</a>
   </div>
+</nav>
 
-  <div class="demo-steps">
-    <div class="step-card">
-      <div class="step-n">1</div>
-      <div class="step-t">Intake Classification</div>
-      <div class="step-d">Complaint type and order ID extracted via structured LLM output. No regex heuristics.</div>
+<!-- ── Page body ──────────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-eyebrow">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Customer Support · AI-powered
     </div>
-    <div class="step-card">
-      <div class="step-n">2</div>
-      <div class="step-t">RISE-M Adjudication</div>
-      <div class="step-d">Policy RAG + refund history + risk score feed a structured prompt. The agent decides: refund, partial, deny, or escalate.</div>
+    <h1>How can we help you today?</h1>
+    <p>Get instant answers, track orders, and resolve issues in seconds.</p>
+    <div class="search-wrap">
+      <input type="text" id="search-inp" placeholder="Describe your issue, e.g. 'missing item from my order'…" autocomplete="off">
+      <button class="search-btn" id="search-go" aria-label="Search">
+        <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
     </div>
-    <div class="step-card">
-      <div class="step-n">3</div>
-      <div class="step-t">Auditable Action</div>
-      <div class="step-d">Every decision is logged. Escalations write a full handoff record with conversation history and risk flags.</div>
-    </div>
-  </div>
+  </header>
 
-  <div class="embed-box">
-    <div class="embed-title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      Drop into any website
-    </div>
-<pre><span class="comment">&lt;!-- 1. Add to your &lt;head&gt; --&gt;</span>
-<span class="keyword">&lt;script</span> <span class="string">src</span>=<span class="string">"https://your-deployment.com/widget.js"</span>
-        <span class="string">data-api</span>=<span class="string">"https://your-deployment.com/api"</span>
-        <span class="string">data-company</span>=<span class="string">"Acme Foods"</span>
-        <span class="string">data-color</span>=<span class="string">"#2563EB"</span>
-        <span class="string">async</span><span class="keyword">&gt;&lt;/script&gt;</span>
-
-<span class="comment">&lt;!-- That's it. The chat button appears bottom-right. --&gt;</span>
-<span class="comment">&lt;!-- POST /api/chat   GET /api/session/:id   WS /ws/:id --&gt;</span></pre>
-  </div>
-
-  <div class="embed-box">
-    <div class="embed-title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Try it live — click the chat button ↘
-    </div>
-    <p style="font-size:13px;color:var(--fg-2);line-height:1.6">
-      The widget below is connected to the local FastAPI server. Try:
-      <br>• "My order ORD-005 had veg marked but I got non-veg food"
-      <br>• "The food from ORD-003 arrived completely cold"
-      <br>• "I want to report an issue with ORD-002" (missing item)
-      <br>• After an offer: say "No, I'd like a different option" to see alternatives
-    </p>
-  </div>
-</div>
-
-
-<!-- ── CHAT WIDGET ──────────────────────────────────────────────────────────── -->
-
-<!-- Launcher button -->
-<button id="riq-launcher" aria-label="Open support chat">
-  <svg class="icon-chat" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
-    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-  </svg>
-  <svg class="icon-close" style="display:none" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-</button>
-
-<!-- Chat panel -->
-<div id="riq-widget" role="dialog" aria-label="Customer support chat">
-  <div class="w-hdr">
-    <div class="w-avatar">🤖</div>
-    <div class="w-info">
-      <div class="w-name" id="w-name">ResolveIQ Support</div>
-      <div class="w-status" id="w-status"><span class="w-dot" id="w-dot"></span> <span id="w-status-text">AI-powered · typically instant</span></div>
-    </div>
-    <button class="w-close" id="w-close-btn" aria-label="Close chat">✕</button>
-  </div>
-
-  <div class="w-msgs" id="w-msgs"></div>
-
-  <div class="quick-chips" id="w-chips">
-    <div class="qc" data-msg="I have a missing item in my order">Missing item</div>
-    <div class="qc" data-msg="My food quality was very poor">Quality issue</div>
-    <div class="qc" data-msg="I received the wrong order">Wrong order</div>
-    <div class="qc" data-msg="My order arrived very late">Late delivery</div>
-  </div>
-
-  <div class="w-in">
-    <input type="file" id="w-cam-input" accept="image/*" capture="environment">
-    <label for="w-cam-input" class="w-cam" id="w-cam"
-           role="button" tabindex="0" aria-label="Attach photo" title="Upload a photo">
-      <!-- camera icon -->
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-           stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8
-                 a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-        <circle cx="12" cy="13" r="4"/>
-      </svg>
-    </label>
-    <textarea class="w-textarea" id="w-input" rows="1"
-      placeholder="Describe your issue…" aria-label="Type your message"></textarea>
-    <button class="w-send" id="w-send" aria-label="Send message">
-      <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
-        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
+  <!-- Issue categories -->
+  <p class="section-label">Common issues</p>
+  <div class="issues-grid">
+    <button class="issue-card" data-msg="My order ORD-002 has a missing item — the garlic bread wasn't included." tabindex="0">
+      <div class="issue-icon" style="background:#FEF2F2">📦</div>
+      <h3>Missing item</h3>
+      <p>An item from your order wasn't included in the delivery.</p>
+      <span class="issue-arrow">→</span>
+    </button>
+    <button class="issue-card" data-msg="My order ORD-005 arrived very late — over 90 minutes past the promised time." tabindex="0">
+      <div class="issue-icon" style="background:#FFFBEB">⏱️</div>
+      <h3>Late delivery</h3>
+      <p>Your order took much longer than the promised time.</p>
+      <span class="issue-arrow">→</span>
+    </button>
+    <button class="issue-card" data-msg="I received the wrong order. I ordered sushi (ORD-004) but got a burger." tabindex="0">
+      <div class="issue-icon" style="background:#F0FDF4">🔄</div>
+      <h3>Wrong order</h3>
+      <p>You received someone else's order or the wrong items.</p>
+      <span class="issue-arrow">→</span>
+    </button>
+    <button class="issue-card" data-msg="The food from ORD-003 arrived cold and tasted stale." tabindex="0">
+      <div class="issue-icon" style="background:#FFF7ED">⭐</div>
+      <h3>Quality issue</h3>
+      <p>Food arrived stale, cold, or not as described.</p>
+      <span class="issue-arrow">→</span>
+    </button>
+    <button class="issue-card" data-msg="I ordered vegetarian but received non-vegetarian food. Order ORD-007." tabindex="0">
+      <div class="issue-icon" style="background:#F5F3FF">🥗</div>
+      <h3>Dietary mismatch</h3>
+      <p>Received non-veg or allergen food when veg/safe was ordered.</p>
+      <span class="issue-arrow">→</span>
+    </button>
+    <button class="issue-card" data-msg="I found a foreign object in my food from order ORD-003." tabindex="0">
+      <div class="issue-icon" style="background:#FEF2F2">⚠️</div>
+      <h3>Foreign object</h3>
+      <p>Found a non-food item (hair, plastic, insect) in your food.</p>
+      <span class="issue-arrow">→</span>
     </button>
   </div>
 
-  <div class="w-foot">Powered by <a href="#">ResolveIQ</a></div>
+  <!-- Order tracker -->
+  <p class="section-label">Track your order</p>
+  <div class="tracker-card">
+    <h2>Order status lookup</h2>
+    <p>Enter your order ID to see delivery progress and take action.</p>
+    <div class="tracker-row">
+      <input type="text" id="order-inp" placeholder="e.g. ORD-002, ORD-005…" autocomplete="off">
+      <button class="tracker-btn" id="order-lookup-btn">Track order</button>
+    </div>
+    <div class="order-result" id="order-result"></div>
+  </div>
+
+  <!-- FAQ -->
+  <p class="section-label">Frequently asked questions</p>
+  <div class="faq-list">
+    <div class="faq-item">
+      <button class="faq-q">How long do refunds take to process? <span class="faq-chevron">⌄</span></button>
+      <div class="faq-a">Approved refunds are processed immediately and typically reach your bank account within 3–5 business days. UPI refunds are usually faster (within 24 hours). You'll receive an email confirmation once the refund is initiated.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Can I cancel my order after it's placed? <span class="faq-chevron">⌄</span></button>
+      <div class="faq-a">You can cancel an order as long as it hasn't been picked up by the delivery partner. Once it's out for delivery, cancellation may not be possible, but you can still raise a complaint after delivery. A full refund is issued for all cancelled orders.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">What compensation do I get for a late delivery? <span class="faq-chevron">⌄</span></button>
+      <div class="faq-a">Delay under 10 min: no compensation. 10–30 min: LOW tier (coupon or credit). 30–60 min: MEDIUM tier (partial refund). Over 60 min: HIGH tier (full refund). Our AI checks order timestamps automatically — no calculation needed on your end.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Why was my refund request declined? <span class="faq-chevron">⌄</span></button>
+      <div class="faq-a">Refunds may be declined if the order was already refunded, the claim doesn't match order details, or our system flags unusual activity. Declined cases are automatically escalated to our human review team, who will contact you within 24 hours.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">How do I speak to a human agent? <span class="faq-chevron">⌄</span></button>
+      <div class="faq-a">Our AI resolves most issues in under a minute. If your case needs human attention, it's automatically escalated and a support specialist will follow up via email within 24 hours. You can also click "Talk to a Human Agent" in the chat at any time.</div>
+    </div>
+  </div>
+
+  <!-- Contact strip -->
+  <p class="section-label">Other ways to reach us</p>
+  <div class="contact-strip">
+    <div class="contact-tile">
+      <div class="ct-icon">💬</div>
+      <h3>AI Chat</h3>
+      <p>Instant resolution, 24/7</p>
+      <div class="ct-detail">Click the button →</div>
+    </div>
+    <div class="contact-tile">
+      <div class="ct-icon">📧</div>
+      <h3>Email</h3>
+      <p>Complex or escalated cases</p>
+      <div class="ct-detail">support@shopease.in</div>
+    </div>
+    <div class="contact-tile">
+      <div class="ct-icon">📞</div>
+      <h3>Phone</h3>
+      <p>Mon–Sat, 9 AM – 9 PM IST</p>
+      <div class="ct-detail">1800-XXX-XXXX</div>
+    </div>
+    <div class="contact-tile">
+      <div class="ct-icon">🐦</div>
+      <h3>Social</h3>
+      <p>Twitter/X for quick queries</p>
+      <div class="ct-detail">@ShopEaseSupport</div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+
+<!-- ── Chat widget ─────────────────────────────────────────────── -->
+<button id="riq-btn" aria-label="Open AI support chat">
+  <svg id="riq-ic-chat" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+  <svg id="riq-ic-x" style="display:none" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+</button>
+
+<div id="riq-panel" role="dialog" aria-label="ShopEase AI Support" aria-modal="true">
+  <div class="riq-hdr">
+    <div class="riq-hdr-av">🤖</div>
+    <div class="riq-hdr-info">
+      <div class="riq-hdr-name">ShopEase Support</div>
+      <div class="riq-hdr-sub">
+        <span class="riq-status-dot" id="riq-dot"></span>
+        <span id="riq-status-text">AI-powered · instant resolution</span>
+      </div>
+    </div>
+    <button class="riq-close" id="riq-close" aria-label="Close">✕</button>
+  </div>
+
+  <div class="riq-msgs" id="riq-msgs" role="log" aria-live="polite"></div>
+
+  <div class="riq-chips" id="riq-chip-row">
+    <button class="riq-chip-btn" data-msg="I have a missing item in my order">Missing item</button>
+    <button class="riq-chip-btn" data-msg="My food quality was very poor">Quality issue</button>
+    <button class="riq-chip-btn" data-msg="I received the wrong order">Wrong order</button>
+    <button class="riq-chip-btn" data-msg="My order arrived very late">Late delivery</button>
+  </div>
+
+  <div class="riq-inp-row">
+    <input type="file" id="w-cam-input" accept="image/*" capture="environment">
+    <label for="w-cam-input" class="w-cam" id="w-cam"
+           role="button" tabindex="0" aria-label="Attach photo" title="Upload a photo">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </label>
+    <textarea class="riq-inp" id="riq-inp" rows="1" placeholder="Describe your issue…" aria-label="Type your message"></textarea>
+    <button class="riq-send" id="riq-send" aria-label="Send">
+      <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+  <div class="riq-footer">Powered by ResolveIQ · AI Customer Support</div>
 </div>
 
 
+<!-- ── Order tracker data ──────────────────────────────────────── -->
 <script>
-// ── Widget configuration ──────────────────────────────────────
-const CONFIG = {
-  apiBase: 'http://localhost:8000',
-  companyName: 'ResolveIQ Support',
-  botName: 'ResolveIQ',
+const TRACKER_ORDERS = {
+  "ORD-001": { name:"Alice Johnson",  item:"Chicken Burger + Fries", total:14.97, est:30, act:35, status:"delivered", issue:null },
+  "ORD-002": { name:"Bob Martinez",   item:"Family Pizza Combo",     total:33.97, est:40, act:42, status:"delivered", issue:"missing_item" },
+  "ORD-003": { name:"Carol Kim",      item:"Ramen Noodles + Gyoza",  total:23.47, est:35, act:38, status:"delivered", issue:"quality" },
+  "ORD-004": { name:"David Osei",     item:"California Roll Set",    total:27.47, est:45, act:50, status:"delivered", issue:"wrong_order" },
+  "ORD-005": { name:"Emma Patel",     item:"Veggie Burger + Fries",  total:17.47, est:30, act:125,status:"delivered", issue:"late" },
+  "ORD-006": { name:"Frank Nguyen",   item:"Premium Ribeye Steak",   total:89.50, est:50, act:58, status:"delivered", issue:null },
+  "ORD-007": { name:"Grace Lee",      item:"Chicken Tikka Masala",   total:22.96, est:40, act:45, status:"delivered", issue:"dietary" },
+  "ORD-008": { name:"Henry Brown",    item:"Margherita Pizza",       total:23.47, est:35, act:38, status:"delivered", issue:null },
+  "ORD-009": { name:"Iris Chen",      item:"Family Burger Combo",    total:50.98, est:45, act:55, status:"delivered", issue:null },
+  "ORD-010": { name:"Jake Wilson",    item:"Pad Thai + Spring Rolls", total:22.47, est:35, act:40, status:"refund",   issue:null },
+  "ORD-011": { name:"Priya Sharma",   item:"Paneer Butter Masala",   total:22.47, est:35, act:null,status:"preparing",issue:null },
+  "ORD-012": { name:"Omar Hassan",    item:"Lamb Seekh Kebab",       total:32.47, est:40, act:null,status:"out_for_delivery",issue:null },
+  "ORD-013": { name:"Diya Nair",      item:"Chicken Wrap",           total:14.48, est:30, act:38, status:"delivered", issue:null },
 };
 
-// ── State ─────────────────────────────────────────────────────
-let sessionId = null;
-let isOpen = false;
-let isTyping = false;
-let isSessionEscalated = false;   // mirrors backend escalated flag
-let hasPendingOffer = false;       // true while awaiting customer confirm/reject
-let hasPendingEvidence = false;    // true when the bot is waiting for a photo upload
+function buildTracker() {
+  const orderInp  = document.getElementById("order-inp");
+  const lookupBtn = document.getElementById("order-lookup-btn");
+  const resultEl  = document.getElementById("order-result");
 
-// ── DOM refs ──────────────────────────────────────────────────
-const launcher  = document.getElementById('riq-launcher');
-const widget    = document.getElementById('riq-widget');
-const msgs      = document.getElementById('w-msgs');
-const input     = document.getElementById('w-input');
-const sendBtn   = document.getElementById('w-send');
-const camBtn    = document.getElementById('w-cam');
-const camInput  = document.getElementById('w-cam-input');
-const closeBtn  = document.getElementById('w-close-btn');
-const chips     = document.getElementById('w-chips');
-const wName     = document.getElementById('w-name');
-const wDot      = document.getElementById('w-dot');
-const wStatusTx = document.getElementById('w-status-text');
-
-wName.textContent = CONFIG.companyName;
-
-// ── Open / close ──────────────────────────────────────────────
-function toggleWidget() {
-  isOpen = !isOpen;
-  widget.classList.toggle('open', isOpen);
-  launcher.classList.toggle('open', isOpen);
-  if (isOpen && msgs.children.length === 0) {
-    addBotMessage(
-      `Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`
-    );
-    sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+  function statusPill(o) {
+    if (o.status === "refund") return '<span class="status-pill pill-progress">♻ Refunded</span>';
+    if (o.status === "preparing") return '<span class="status-pill pill-progress">🍳 Preparing</span>';
+    if (o.status === "out_for_delivery") return '<span class="status-pill pill-progress">🛵 On the way</span>';
+    const delay = (o.act || 0) - o.est;
+    if (o.issue) return `<span class="status-pill pill-issue">⚠ Issue reported</span>`;
+    if (delay > 30) return `<span class="status-pill pill-late">⏱ ${delay}m late</span>`;
+    return '<span class="status-pill pill-delivered">✓ Delivered</span>';
   }
-  if (isOpen) setTimeout(() => input.focus(), 250);
+
+  function timelineHtml(o) {
+    const delivered = o.status === "delivered" || o.status === "refund";
+    const outForDelivery = o.status === "out_for_delivery" || delivered;
+    const steps = [
+      { label: "Placed",       done: true },
+      { label: "Preparing",    done: true },
+      { label: "Picked up",    done: outForDelivery },
+      { label: "Out for delivery", done: delivered, active: o.status === "out_for_delivery" },
+      { label: "Delivered",    done: delivered },
+    ];
+    return steps.map(s => {
+      const cls = s.done ? "done" : s.active ? "active" : "";
+      return `<div class="timeline-step ${cls}"><div class="tl-dot"></div><div class="tl-label">${s.label}</div></div>`;
+    }).join("");
+  }
+
+  function lookup() {
+    const raw = orderInp.value.trim().toUpperCase();
+    const oid = raw.startsWith("ORD-") ? raw : "ORD-" + raw.replace(/\D/g, "").padStart(3, "0");
+    const o = TRACKER_ORDERS[oid];
+    if (!o) {
+      resultEl.className = "order-result show";
+      resultEl.innerHTML = `<p style="color:var(--red);font-size:14px;">Order <strong>${oid}</strong> not found. Check the order number in your confirmation email.</p>`;
+      return;
+    }
+    const delay = o.act != null ? o.act - o.est : null;
+    resultEl.className = "order-result show";
+    resultEl.innerHTML = `
+      <div class="order-meta">
+        <div class="order-field"><label>Order ID</label><span>${oid}</span></div>
+        <div class="order-field"><label>Item</label><span>${o.item}</span></div>
+        <div class="order-field"><label>Total</label><span>₹${o.total.toFixed(2)}</span></div>
+        <div class="order-field"><label>Status</label>${statusPill(o)}</div>
+        ${delay != null && delay > 0 ? `<div class="order-field"><label>Delay</label><span>${delay} min</span></div>` : ""}
+      </div>
+      <div class="order-timeline" style="margin-top:18px">${timelineHtml(o)}</div>
+      <div class="order-actions">
+        ${o.issue ? `<button class="action-btn primary" onclick="openChatWith('I have an issue with order ${oid}: ${o.issue.replace('_', ' ')}.')">Get help →</button>` : ""}
+        <button class="action-btn secondary" onclick="openChatWith('What is the status of order ${oid}?')">Ask AI</button>
+      </div>
+    `;
+  }
+
+  lookupBtn.addEventListener("click", lookup);
+  orderInp.addEventListener("keydown", e => { if (e.key === "Enter") lookup(); });
 }
 
-launcher.addEventListener('click', toggleWidget);
-closeBtn.addEventListener('click', toggleWidget);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen) toggleWidget(); });
+buildTracker();
+</script>
 
-// ── Quick-reply chips ─────────────────────────────────────────
-chips.querySelectorAll('.qc').forEach(chip => {
-  chip.addEventListener('click', () => {
-    sendMessage(chip.dataset.msg);
-    chips.style.display = 'none';
+
+<!-- ── Chat widget JS ─────────────────────────────────────────── -->
+<script>
+(function () {
+"use strict";
+
+const CONFIG = {
+  apiBase:     'http://localhost:8000',
+  companyName: 'ShopEase Support',
+  tenantId:    new URLSearchParams(location.search).get('tenant') || 'demo_foodco',
+};
+
+// ── State ──────────────────────────────────────────────────────
+let sessionId          = null;
+let tenantConfig       = null;
+let isOpen             = false;
+let isTyping           = false;
+let isSessionEscalated = false;
+let hasPendingOffer    = false;
+let hasPendingEvidence = false;
+let pendingConfId      = null;   // CONF-xxx token from last offer
+
+// ── DOM refs ───────────────────────────────────────────────────
+const riqBtn    = document.getElementById('riq-btn');
+const panel     = document.getElementById('riq-panel');
+const msgs      = document.getElementById('riq-msgs');
+const inp       = document.getElementById('riq-inp');
+const sendBtn   = document.getElementById('riq-send');
+const camBtn    = document.getElementById('w-cam');
+const camInput  = document.getElementById('w-cam-input');
+const closeBtn  = document.getElementById('riq-close');
+const chipRow   = document.getElementById('riq-chip-row');
+const statusDot = document.getElementById('riq-dot');
+const statusTxt = document.getElementById('riq-status-text');
+const icChat    = document.getElementById('riq-ic-chat');
+const icX       = document.getElementById('riq-ic-x');
+
+// ── Open / close ───────────────────────────────────────────────
+function toggle(prefill) {
+  isOpen = !isOpen;
+  panel.classList.toggle('open', isOpen);
+  riqBtn.classList.toggle('open', isOpen);
+  icChat.style.display = isOpen ? 'none' : '';
+  icX.style.display    = isOpen ? '' : 'none';
+  if (isOpen) {
+    if (msgs.children.length === 0) {
+      sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+      addBotMessage(`Hi! 👋 I'm the ShopEase AI support assistant.\n\nI can help with missing items, late deliveries, wrong orders, dietary issues, quality complaints, and more. What order can I help you with?`);
+    }
+    setTimeout(() => {
+      inp.focus();
+      if (prefill) { inp.value = prefill; inp.dispatchEvent(new Event('input')); }
+    }, 220);
+  }
+}
+
+window.openChatWith = function (msg) {
+  if (!isOpen) toggle(msg);
+  else { inp.value = msg; inp.focus(); }
+};
+
+// ── Tenant config ───────────────────────────────────────────────
+async function loadTenantConfig() {
+  try {
+    const res = await fetch(`${CONFIG.apiBase}/api/tenant/${CONFIG.tenantId}/config`);
+    if (!res.ok) return;
+    tenantConfig = await res.json();
+    applyTenantBranding(tenantConfig);
+  } catch (_) { /* server may not be running yet */ }
+}
+
+function applyTenantBranding(cfg) {
+  const w = cfg.widget || {};
+  if (w.accent_color) document.documentElement.style.setProperty('--accent', w.accent_color);
+  if (w.brand_name) {
+    CONFIG.companyName = w.brand_name;
+    document.querySelectorAll('[data-brand]').forEach(el => { el.textContent = w.brand_name; });
+  }
+  if (w.quick_chips && w.quick_chips.length) {
+    chipRow.innerHTML = '';
+    w.quick_chips.forEach(chip => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.textContent = chip.label;
+      b.addEventListener('click', () => sendMessage(chip.message));
+      chipRow.appendChild(b);
+    });
+  }
+}
+
+loadTenantConfig();
+
+riqBtn.addEventListener('click', () => toggle());
+closeBtn.addEventListener('click', () => toggle());
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen) toggle(); });
+
+// ── Issue cards + search → open chat ──────────────────────────
+document.querySelectorAll('.issue-card[data-msg]').forEach(card => {
+  card.addEventListener('click', () => {
+    if (!isOpen) toggle();
+    setTimeout(() => sendMessage(card.dataset.msg), isOpen ? 0 : 260);
   });
 });
 
-// ── Time helper ───────────────────────────────────────────────
-function now() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+document.getElementById('search-go').addEventListener('click', () => {
+  const q = document.getElementById('search-inp').value.trim();
+  if (!q) return;
+  if (!isOpen) toggle();
+  setTimeout(() => sendMessage(q), isOpen ? 0 : 260);
+});
+document.getElementById('search-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('search-go').click();
+});
 
-// ── Decision badge labels ─────────────────────────────────────
+// ── Quick chips ────────────────────────────────────────────────
+chipRow.querySelectorAll('.riq-chip-btn').forEach(c => {
+  c.addEventListener('click', () => {
+    chipRow.style.display = 'none';
+    sendMessage(c.dataset.msg);
+  });
+});
+
+// ── Time helper ────────────────────────────────────────────────
+function ts() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+// ── Decision labels ────────────────────────────────────────────
 const DECISION_LABELS = {
   full_refund:       '✓ Full refund approved',
   partial_refund:    '✓ Partial refund approved',
@@ -505,27 +742,32 @@ const DECISION_LABELS = {
   apology:           '✓ Apology issued',
   explanation:       'ℹ Explanation provided',
   deny:              '✗ Claim not approved',
-  escalate:          '⚑ Escalated to team',
+  escalate:          '⚑ Escalated to human team',
 };
 
-// ── Add a bot message bubble ──────────────────────────────────
+// ── Add bot message ────────────────────────────────────────────
 function addBotMessage(text, opts = {}) {
   const { decision, pendingOffer, resolutionOptions, escalated, evidenceRequired } = opts;
-  const row = document.createElement('div');
-  row.className = 'msg-row bot';
+  chipRow.style.display = 'none';
 
+  const row = document.createElement('div');
+  row.className = 'riq-row bot';
   const av = document.createElement('div');
-  av.className = 'msg-av bot';
+  av.className = 'riq-av';
   av.textContent = 'AI';
 
-  const body = document.createElement('div');
-  body.style.maxWidth = '82%';
-
+  const wrap = document.createElement('div');
+  wrap.className = 'riq-bub-wrap';
   const bub = document.createElement('div');
-  bub.className = 'msg-bub';
-  bub.textContent = text;
+  bub.className = 'riq-bub';
 
-  // Decision chip — only shown after execution (when no pending offer remains)
+  // Multi-line text
+  text.split('\n').forEach((line, i) => {
+    if (i) bub.appendChild(document.createElement('br'));
+    bub.appendChild(document.createTextNode(line));
+  });
+
+  // Decision chip (after execution, no pending offer)
   if (decision && decision !== 'need_order_id' && !pendingOffer) {
     const chip = document.createElement('div');
     chip.className = `decision-chip dc-${decision}`;
@@ -534,135 +776,116 @@ function addBotMessage(text, opts = {}) {
     bub.appendChild(chip);
   }
 
-  // Evidence upload UI — takes priority over option picker
+  // Evidence upload UI
   if (pendingOffer && evidenceRequired && !escalated) {
     bub.appendChild(buildEvidenceUploader());
   } else if (pendingOffer && !escalated) {
-    // Normal offer UI
     const opts2 = resolutionOptions || [];
-    if (opts2.length > 1) {
-      bub.appendChild(buildOptionPicker(opts2));
-    } else {
-      bub.appendChild(buildConfirmButtons());
-    }
+    bub.appendChild(opts2.length > 1 ? buildOptionPicker(opts2) : buildConfirmButtons());
   }
 
-  // Escalation card with "start new chat" link
-  if (escalated) {
-    bub.appendChild(buildEscalationCard());
-  }
+  // Escalation card
+  if (escalated) bub.appendChild(buildEscalationCard());
 
   const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = now();
+  time.className = 'riq-ts';
+  time.textContent = ts();
 
-  body.appendChild(bub);
-  body.appendChild(time);
+  wrap.appendChild(bub);
+  wrap.appendChild(time);
   row.appendChild(av);
-  row.appendChild(body);
+  row.appendChild(wrap);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-// ── Add a user message bubble ─────────────────────────────────
+// ── Add user message ───────────────────────────────────────────
 function addUserMessage(text) {
+  chipRow.style.display = 'none';
   const row = document.createElement('div');
-  row.className = 'msg-row user';
-
+  row.className = 'riq-row user';
   const av = document.createElement('div');
-  av.className = 'msg-av usr';
+  av.className = 'riq-av';
   av.textContent = 'You';
-
-  const body = document.createElement('div');
-  body.style.maxWidth = '78%';
-
+  const wrap = document.createElement('div');
+  wrap.className = 'riq-bub-wrap';
   const bub = document.createElement('div');
-  bub.className = 'msg-bub';
+  bub.className = 'riq-bub';
   bub.textContent = text;
-
   const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = now();
-
-  body.appendChild(bub);
-  body.appendChild(time);
-  row.appendChild(body);
+  time.className = 'riq-ts';
+  time.textContent = ts();
+  wrap.appendChild(bub);
+  wrap.appendChild(time);
+  row.appendChild(wrap);
   row.appendChild(av);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-// ── Build simple Accept / Decline buttons ──────────────────────
+// ── Confirm buttons (single offer) ────────────────────────────
 function buildConfirmButtons() {
   const wrap = document.createElement('div');
   wrap.className = 'offer-actions';
-
   const yes = document.createElement('button');
   yes.className = 'offer-btn accept';
   yes.textContent = 'Yes, proceed';
   yes.addEventListener('click', () => {
     disableButtons(wrap);
-    sendMessage('Accepted', { action: 'accept' });
+    const payload = { action: 'accept' };
+    if (pendingConfId) payload.conf_id = pendingConfId;
+    sendMessage('Accepted', payload);
   });
-
   const no = document.createElement('button');
   no.className = 'offer-btn decline';
   no.textContent = 'No, different option';
   no.addEventListener('click', () => {
     disableButtons(wrap);
-    sendMessage("No, I'd like a different option.");
+    const payload = { action: 'decline' };
+    if (pendingConfId) payload.conf_id = pendingConfId;
+    sendMessage("No, I'd like a different option.", payload);
   });
-
   wrap.appendChild(yes);
   wrap.appendChild(no);
   return wrap;
 }
 
-// ── Build multi-option picker ──────────────────────────────────
+// ── Multi-option picker ────────────────────────────────────────
 function buildOptionPicker(options) {
   const card = document.createElement('div');
   card.className = 'opt-picker';
-
   const label = document.createElement('div');
   label.className = 'opt-picker-label';
   label.textContent = 'Choose an option:';
   card.appendChild(label);
 
-  const OPTION_ICONS = {
-    full_refund: '💰', partial_refund: '💵', coupon: '🎟',
-    store_credit: '🏷', replacement: '🔄', priority_handling: '⚡',
-    apology: '🤝', explanation: 'ℹ', escalate: '👤',
+  const ICONS = {
+    full_refund: '💰', partial_refund: '💵', coupon: '🎟', store_credit: '🏷',
+    replacement: '🔄', priority_handling: '⚡', apology: '🤝', explanation: 'ℹ', escalate: '👤',
   };
 
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'opt-btn' + (opt.type === 'escalate' ? ' human' : '');
-
     const icon = document.createElement('span');
     icon.className = 'opt-icon';
-    icon.textContent = OPTION_ICONS[opt.type] || '→';
-
+    icon.textContent = ICONS[opt.type] || '→';
     btn.appendChild(icon);
     btn.appendChild(document.createTextNode(opt.label));
-
     btn.addEventListener('click', () => {
       disableButtons(card, '.opt-btn');
       if (opt.type === 'escalate') {
-        // Escalate button: use action payload so backend routes deterministically
         sendMessage('Talk to a human agent', { action: 'select', selected_resolution_type: 'escalate' });
       } else {
-        // Option selection: structured payload, display label as user bubble
         sendMessage(`Selected: ${opt.label}`, { action: 'select', selected_resolution_type: opt.type });
       }
     });
-
     card.appendChild(btn);
   });
-
   return card;
 }
 
-// ── Build evidence upload widget ──────────────────────────────
+// ── Inline evidence uploader ───────────────────────────────────
 function buildEvidenceUploader() {
   const wrap = document.createElement('div');
   wrap.className = 'evidence-wrap';
@@ -692,25 +915,19 @@ function buildEvidenceUploader() {
     disableButtons(wrap, '.offer-btn');
     status.textContent = 'Uploading…';
     wrap.appendChild(status);
-
     try {
       const form = new FormData();
       form.append('file', file);
-      const resp = await fetch(
-        `${CONFIG.apiBase}/api/session/${sessionId}/evidence`,
-        { method: 'POST', body: form }
-      );
+      const resp = await fetch(`${CONFIG.apiBase}/api/session/${sessionId}/evidence`, { method: 'POST', body: form });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         status.textContent = `Upload failed: ${err.detail || resp.status}`;
-        disableButtons(wrap, '.offer-btn'); // keep disabled
         return;
       }
       const ev = await resp.json();
       status.textContent = `Photo received (${ev.verdict}).`;
-      // Trigger next graph turn with evidence_uploaded action
       sendMessage('Photo uploaded.', { action: 'evidence_uploaded' });
-    } catch (e) {
+    } catch {
       status.textContent = 'Upload failed — please try again.';
     }
   });
@@ -726,176 +943,161 @@ function buildEvidenceUploader() {
   return wrap;
 }
 
-// ── Build escalation follow-up card ───────────────────────────
+// ── Escalation follow-up card ──────────────────────────────────
 function buildEscalationCard() {
   const card = document.createElement('div');
   card.className = 'escalation-card';
-
   const p = document.createElement('p');
-  p.textContent = 'Your case has been passed to a human agent. They\'ll follow up within 24 hours. You can also start a new conversation for a different issue.';
+  p.textContent = "Your case has been passed to a human agent. They'll follow up within 24 hours. You can start a new conversation for a different issue.";
   card.appendChild(p);
-
   const btn = document.createElement('button');
   btn.className = 'esc-new-btn';
   btn.textContent = '+ Start new conversation';
   btn.addEventListener('click', resetSession);
   card.appendChild(btn);
-
   return card;
 }
 
-// ── Disable buttons after a choice is made ────────────────────
+// ── Disable buttons in a container ────────────────────────────
 function disableButtons(container, selector = '.offer-btn') {
   container.querySelectorAll(selector).forEach(b => b.disabled = true);
 }
 
-// ── Reset session (new chat) ──────────────────────────────────
+// ── Reset session ──────────────────────────────────────────────
 function resetSession() {
   msgs.innerHTML = '';
   sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
   isSessionEscalated = false;
-  hasPendingOffer = false;
+  hasPendingOffer    = false;
   hasPendingEvidence = false;
   camBtn.classList.remove('ev-needed', 'cam-disabled');
-  chips.style.display = '';
-  input.disabled = false;
+  chipRow.style.display = '';
+  inp.disabled = false;
   sendBtn.disabled = false;
-  wDot.className = 'w-dot';
-  wStatusTx.textContent = 'AI-powered · typically instant';
-  addBotMessage(`Hi! I'm the ${CONFIG.botName} assistant. I can help with missing items, quality issues, wrong orders, and late deliveries. What's going on?`);
-  input.focus();
+  statusDot.className = 'riq-status-dot';
+  statusTxt.textContent = 'AI-powered · instant resolution';
+  addBotMessage(`Hi! 👋 I'm the ShopEase AI support assistant.\n\nI can help with missing items, late deliveries, wrong orders, dietary issues, quality complaints, and more. What can I help you with?`);
+  inp.focus();
 }
 
-// ── Typing indicator ──────────────────────────────────────────
+// ── Typing indicator ───────────────────────────────────────────
 function showTyping() {
   if (isTyping) return;
   isTyping = true;
   const row = document.createElement('div');
-  row.className = 'msg-row bot';
-  row.id = 'typing-row';
+  row.className = 'riq-row bot';
+  row.id = 'riq-typing-row';
   const av = document.createElement('div');
-  av.className = 'msg-av bot';
+  av.className = 'riq-av';
   av.textContent = 'AI';
+  const wrap = document.createElement('div');
+  wrap.className = 'riq-bub-wrap';
   const bub = document.createElement('div');
-  bub.className = 'msg-bub';
-  bub.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  bub.className = 'riq-bub';
+  bub.innerHTML = '<div class="riq-typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(bub);
   row.appendChild(av);
-  row.appendChild(bub);
+  row.appendChild(wrap);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
 function hideTyping() {
   isTyping = false;
-  const row = document.getElementById('typing-row');
+  const row = document.getElementById('riq-typing-row');
   if (row) row.remove();
 }
 
-// ── Send message ──────────────────────────────────────────────
-// actionPayload: optional { action, selected_resolution_type } from buttons
+// ── Send message (real API) ────────────────────────────────────
 async function sendMessage(text, actionPayload = null) {
   if (!text.trim()) return;
   text = text.trim();
-
-  input.value = '';
-  input.style.height = 'auto';
+  inp.value = '';
+  inp.style.height = 'auto';
   sendBtn.disabled = true;
-
   addUserMessage(text);
   showTyping();
-  chips.style.display = 'none';
 
   try {
-    const body = { message: text, session_id: sessionId };
+    const body = { message: text, session_id: sessionId, tenant_id: CONFIG.tenantId };
     if (actionPayload) {
-      if (actionPayload.action) body.action = actionPayload.action;
-      if (actionPayload.selected_resolution_type) body.selected_resolution_type = actionPayload.selected_resolution_type;
+      if (actionPayload.action)                    body.action = actionPayload.action;
+      if (actionPayload.selected_resolution_type)  body.selected_resolution_type = actionPayload.selected_resolution_type;
+      if (actionPayload.conf_id)                   body.conf_id = actionPayload.conf_id;
     }
     const resp = await fetch(`${CONFIG.apiBase}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    sessionId = data.session_id;
+    sessionId          = data.session_id;
     isSessionEscalated = data.escalated || false;
-    hasPendingOffer = !!data.pending_offer;
+    hasPendingOffer    = !!data.pending_offer;
     hasPendingEvidence = data.evidence_required || false;
+    pendingConfId      = data.conf_id || null;
     camBtn.classList.toggle('ev-needed', hasPendingEvidence);
 
     hideTyping();
     addBotMessage(data.response, {
-      decision:         data.decision,
-      pendingOffer:     data.pending_offer,
+      decision:          data.decision,
+      pendingOffer:      data.pending_offer,
       resolutionOptions: data.resolution_options,
-      escalated:        data.escalated,
-      evidenceRequired: data.evidence_required || false,
+      escalated:         data.escalated,
+      evidenceRequired:  data.evidence_required || false,
     });
 
     // Update status indicator
     if (data.escalated) {
-      wDot.className = 'w-dot offline';
-      wStatusTx.textContent = 'Passed to human agent';
+      statusDot.className = 'riq-status-dot offline';
+      statusTxt.textContent = 'Passed to human agent';
     } else if (data.pending_offer) {
-      wStatusTx.textContent = 'Awaiting your confirmation';
+      statusTxt.textContent = 'Awaiting your confirmation';
     } else {
-      wDot.className = 'w-dot';
-      wStatusTx.textContent = 'AI-powered · typically instant';
+      statusDot.className = 'riq-status-dot';
+      statusTxt.textContent = 'AI-powered · instant resolution';
     }
 
-  } catch (err) {
+  } catch {
     hideTyping();
-    // Server offline — show deterministic demo response
     addBotMessage(getDemoResponse(text));
   } finally {
     sendBtn.disabled = false;
-    input.focus();
+    inp.focus();
   }
 }
 
-// ── Demo responses (server offline fallback) ──────────────────
+// ── Demo fallback (server offline) ────────────────────────────
 function getDemoResponse(text) {
   const t = text.toLowerCase();
   if (t.includes('missing') || t.includes('ord-002'))
-    return "I can see your order had a missing item. I've verified the order details and I'd like to offer you a partial refund of $4.99 for the garlic bread. Would you like me to proceed?";
+    return "I can see your order had a missing item. I've verified the details and I'd like to offer you a partial refund for the missing item. Would you like me to proceed?\n\n(Note: the AI server is offline — this is a demo response.)";
   if (t.includes('cold') || t.includes('quality') || t.includes('ord-003'))
-    return "I'm sorry your food arrived cold. Based on our quality policy, I'd like to offer you a 30% refund of $7.04. Would you like me to proceed?";
-  if (t.includes('veg') || t.includes('non-veg') || t.includes('ord-005'))
-    return "I understand you received a non-vegetarian item when you expected vegetarian food. I'd like to offer you a full refund of $17.47 for this dietary mismatch. Would you like me to proceed?";
+    return "I'm sorry your food arrived cold. Based on our quality policy, I can offer you a refund. Could you confirm your order ID? (Server offline — demo mode.)";
   if (t.includes('late') || t.includes('delay'))
-    return "I'm sorry your order arrived late. Depending on how long the delay was, I may be able to offer a refund. Could you share your order ID so I can check the details?";
-  if (t.includes('yes') || t.includes('proceed') || t.includes('ok'))
-    return "Your refund has been processed. You should see it reflected in your account within 3–5 business days. Is there anything else I can help you with?";
-  if (t.includes('no') || t.includes('different') || t.includes('other'))
-    return "No problem. Other options I can offer: a coupon for your next order, store credit, or I can connect you with a human agent. Which would you prefer?";
+    return "I'm sorry your order was late. To check the exact delay and apply the correct compensation, could you share your order ID? (Server offline — demo mode.)";
   if (t.match(/ord-\d+/i))
-    return "I've found your order. Could you describe the issue? For example: missing item, quality problem, wrong order, or late delivery?";
-  return "I'd be happy to help! Could you share your order ID? You'll find it in your confirmation email (format: ORD-XXX).";
+    return "I've noted your order. What issue are you experiencing — missing item, quality problem, late delivery, or something else? (Server offline — demo mode.)";
+  return "I'd be happy to help! Could you share your order number? You'll find it in your confirmation email (format: ORD-001). (Server offline — demo mode.)";
 }
 
-// ── Input auto-resize + send on Enter ────────────────────────
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+// ── Input handlers ─────────────────────────────────────────────
+inp.addEventListener('input', () => {
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 80) + 'px';
 });
-
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage(input.value);
-  }
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(inp.value); }
 });
+sendBtn.addEventListener('click', () => sendMessage(inp.value));
 
-sendBtn.addEventListener('click', () => sendMessage(input.value));
-
-// ── Camera / photo upload (label → file input, no JS .click() needed) ────────
+// ── Camera button (label → file input) ────────────────────────
 camInput.addEventListener('change', async () => {
   const file = camInput.files[0];
   if (!file) return;
-  camInput.value = '';   // reset so the same file triggers change next time
+  camInput.value = '';
 
   if (!sessionId) {
     addBotMessage("Please describe your issue first, then attach a photo to help clarify the problem.");
@@ -908,32 +1110,38 @@ camInput.addEventListener('change', async () => {
   try {
     const form = new FormData();
     form.append('file', file);
-
-    const resp = await fetch(
-      `${CONFIG.apiBase}/api/session/${sessionId}/evidence`,
-      { method: 'POST', body: form }
-    );
-
+    const resp = await fetch(`${CONFIG.apiBase}/api/session/${sessionId}/evidence`, { method: 'POST', body: form });
     addUserMessage('📷 Photo uploaded');
     hideTyping();
-
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       addBotMessage(`I couldn't process that photo: ${err.detail || 'upload failed'}. Please try again.`);
       return;
     }
-
-    const ev = await resp.json();
-    // Trigger next graph turn so the bot applies the evidence result
     await sendMessage('Photo submitted.', { action: 'evidence_uploaded' });
-
-  } catch (e) {
+  } catch {
     hideTyping();
     addBotMessage('Photo upload failed — please check your connection and try again.');
   } finally {
     camBtn.classList.remove('cam-disabled');
   }
 });
+
+})();
 </script>
+
+
+<!-- ── FAQ accordion ──────────────────────────────────────────── -->
+<script>
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.faq-item');
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item.classList.add('open');
+  });
+});
+</script>
+
 </body>
 </html>

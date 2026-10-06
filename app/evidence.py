@@ -288,7 +288,10 @@ def _vision_llm_check(
     Call the vision LLM and return {verdict, confidence, observations}.
     Caller catches all exceptions.
     """
-    from app.config import GROQ_API_KEY, VISION_MODEL_ID
+    from app.config import (
+        GROQ_API_KEY, VISION_MODEL_ID,
+        OPENROUTER_API_KEY, OPENROUTER_BASE_URL,
+    )
     from langchain_groq import ChatGroq
     from langchain_core.messages import HumanMessage, SystemMessage
     from pydantic import BaseModel, Field as PField
@@ -321,9 +324,6 @@ def _vision_llm_check(
     else:
         media_type = "image/png"
 
-    llm = ChatGroq(model=VISION_MODEL_ID, temperature=0, api_key=GROQ_API_KEY)
-    structured_llm = llm.with_structured_output(VisionOutput)
-
     message = HumanMessage(content=[
         {
             "type": "image_url",
@@ -331,11 +331,23 @@ def _vision_llm_check(
         },
         {"type": "text", "text": user_text},
     ])
+    prompt = [SystemMessage(content=_VISION_SYSTEM), message]
 
-    result: VisionOutput = structured_llm.invoke([
-        SystemMessage(content=_VISION_SYSTEM),
-        message,
-    ])
+    llm = ChatGroq(model=VISION_MODEL_ID, temperature=0, api_key=GROQ_API_KEY)
+    try:
+        result: VisionOutput = llm.with_structured_output(VisionOutput).invoke(prompt)
+    except Exception as groq_exc:
+        if not OPENROUTER_API_KEY:
+            raise
+        logger.warning("evidence._vision_llm_check: Groq failed (%s), retrying via OpenRouter.", groq_exc)
+        from langchain_openai import ChatOpenAI
+        fallback = ChatOpenAI(
+            model="openai/gpt-4o-mini",
+            api_key=OPENROUTER_API_KEY,
+            base_url=OPENROUTER_BASE_URL,
+            temperature=0,
+        )
+        result = fallback.with_structured_output(VisionOutput).invoke(prompt)
 
     return {
         "verdict":      result.verdict,

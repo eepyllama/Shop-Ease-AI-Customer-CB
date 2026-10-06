@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ResolveIQ Ops Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    /* === Layout: sticky nav + scrollable main, sliding detail panel === */
+    :root {
+      --accent:      #2563EB;
+      --accent-dim:  #DBEAFE;
+      --bg:          #F1F5F9;
+      --surface:     #FFFFFF;
+      --surface-2:   #F8FAFC;
+      --border:      #E2E8F0;
+      --text:        #0F172A;
+      --text-2:      #64748B;
+      --success:     #059669;
+      --success-dim: #D1FAE5;
+      --warning:     #D97706;
+      --warning-dim: #FEF3C7;
+      --danger:      #DC2626;
+      --danger-dim:  #FEE2E2;
+      --font-h:      'Sora', system-ui, sans-serif;
+      --font-b:      'DM Sans', system-ui, sans-serif;
+      --r:           8px;
+      --pill:        20px;
+      --shadow:      0 1px 3px rgba(15,23,42,.07), 0 1px 2px rgba(15,23,42,.05);
+      --shadow-lg:   0 20px 40px rgba(15,23,42,.15);
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:          #0B1221;
+        --surface:     #162032;
+        --surface-2:   #1E2D42;
+        --border:      #2D3F56;
+        --text:        #E8F0FB;
+        --text-2:      #8BA4C0;
+        --accent-dim:  #1A3560;
+        --success-dim: #052E1A;
+        --warning-dim: #2D1F05;
+        --danger-dim:  #2D0A0A;
+        --shadow:      0 1px 3px rgba(0,0,0,.3);
+        --shadow-lg:   0 20px 40px rgba(0,0,0,.5);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg:          #0B1221;
+      --surface:     #162032;
+      --surface-2:   #1E2D42;
+      --border:      #2D3F56;
+      --text:        #E8F0FB;
+      --text-2:      #8BA4C0;
+      --accent-dim:  #1A3560;
+      --success-dim: #052E1A;
+      --warning-dim: #2D1F05;
+      --danger-dim:  #2D0A0A;
+      --shadow:      0 1px 3px rgba(0,0,0,.3);
+      --shadow-lg:   0 20px 40px rgba(0,0,0,.5);
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      font-family: var(--font-b);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      min-width: 400px;
+    }
+
+    /* Nav */
+    .nav {
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow);
+    }
+    .nav-logo {
+      font-family: var(--font-h);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+      letter-spacing: -.02em;
+      white-space: nowrap;
+    }
+    .nav-slash { color: var(--text-2); font-weight: 400; font-size: 13px; margin-left: 6px; letter-spacing: 0; }
+    .nav-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .nav-tenant {
+      font-family: var(--font-b);
+      font-size: 13px;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      max-width: 180px;
+    }
+    .nav-tenant:focus { border-color: var(--accent); }
+    .nav-space { flex: 1; }
+    .icon-btn {
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      background: var(--bg);
+      color: var(--text-2);
+      cursor: pointer;
+      font-size: 15px;
+      transition: background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--accent-dim); color: var(--accent); }
+
+    /* Offline banner */
+    .banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 24px;
+      background: var(--warning-dim);
+      color: var(--warning);
+      font-size: 13px;
+      border-bottom: 1px solid var(--warning);
+    }
+    .banner.show { display: flex; }
+
+    /* Main layout */
+    main {
+      padding-block: 24px;
+      padding-inline: max(16px, 24px);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Row header */
+    .row-hd {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .row-label {
+      font-family: var(--font-h);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-2);
+    }
+    .last-up {
+      font-size: 12px;
+      color: var(--text-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Stat tiles */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 440px) { .stats { grid-template-columns: 1fr; } }
+
+    .tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--tile-color, var(--accent));
+      border-radius: var(--r);
+      padding: 18px 20px 16px;
+      box-shadow: var(--shadow);
+    }
+    .tile-lbl {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--text-2);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .tile-val {
+      font-family: var(--font-h);
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tile-sub {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 5px;
+      font-variant-numeric: tabular-nums;
+      min-height: 18px;
+    }
+
+    /* Card shell */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+    }
+
+    /* Filters bar */
+    .filters {
+      display: flex;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filters select,
+    .filters input[type="text"] {
+      font-family: var(--font-b);
+      font-size: 13px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+    .filters select:focus,
+    .filters input:focus { border-color: var(--accent); }
+    .filters input[type="text"] { flex: 1; min-width: 120px; }
+    .btn-refresh {
+      font-family: var(--font-b);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      cursor: pointer;
+      margin-left: auto;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s;
+    }
+    .btn-refresh:hover { background: #1D4ED8; }
+    .btn-refresh:disabled { opacity: .55; cursor: default; }
+
+    /* Table */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    thead th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-2);
+      font-weight: 600;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr.row { cursor: pointer; }
+    tbody tr.row:hover td { background: var(--accent-dim); }
+    tbody tr.row.selected td { background: var(--accent-dim); }
+    .empty {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    /* Case ID mono style */
+    .case-id {
+      font-family: var(--font-h);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: -.01em;
+    }
+
+    /* Badges + pills */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: var(--pill);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: var(--pill);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .s-active    { background: var(--accent-dim);  color: var(--accent);  }
+    .s-resolved  { background: var(--success-dim); color: var(--success); }
+    .s-escalated { background: var(--danger-dim);  color: var(--danger);  }
+    .s-pending   { background: var(--warning-dim); color: var(--warning); }
+    .i-late_delivery { background: var(--warning-dim); color: var(--warning); }
+    .i-wrong_item    { background: var(--danger-dim);  color: var(--danger);  }
+    .i-missing_item  { background: var(--danger-dim);  color: #9A3412;        }
+    .i-refund        { background: var(--accent-dim);  color: var(--accent);  }
+    .i-default       { background: var(--surface-2);   color: var(--text-2);  }
+
+    /* Risk bar */
+    .risk { display: flex; align-items: center; gap: 8px; }
+    .risk-bg { background: var(--border); border-radius: 3px; height: 5px; width: 56px; flex-shrink: 0; }
+    .risk-fill { height: 5px; border-radius: 3px; }
+    .risk-num { font-size: 12px; color: var(--text-2); width: 24px; font-variant-numeric: tabular-nums; }
+
+    /* Detail panel overlay */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(11,18,33,.45);
+      z-index: 200;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: auto; }
+
+    /* Detail panel */
+    .panel {
+      position: fixed; top: 0; right: 0;
+      height: 100%; width: 440px; max-width: 100%;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 201;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .panel.open { transform: translateX(0); }
+    @media (max-width: 480px) { .panel { width: 100%; } }
+
+    .panel-hd {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 12px;
+      flex-shrink: 0;
+    }
+    .panel-hd-info { flex: 1; min-width: 0; }
+    .panel-title { font-family: var(--font-h); font-weight: 700; font-size: 14px; }
+    .panel-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+    .panel-close {
+      background: none; border: none;
+      font-size: 18px; cursor: pointer;
+      color: var(--text-2); padding: 2px 4px;
+      line-height: 1; flex-shrink: 0;
+    }
+    .panel-close:hover { color: var(--text); }
+
+    .panel-body { overflow-y: auto; flex: 1; padding: 20px; }
+
+    /* Detail grid */
+    .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+    .d-item { min-width: 0; }
+    .d-item label {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-2);
+      font-weight: 600; display: block; margin-bottom: 3px;
+    }
+    .d-item span { font-size: 13px; font-weight: 500; word-break: break-all; }
+    .d-wide { grid-column: 1 / -1; }
+
+    /* Evidence confidence bar */
+    .conf { margin-bottom: 22px; }
+    .conf-hd {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-2);
+      font-weight: 600;
+      display: flex; justify-content: space-between;
+      margin-bottom: 7px;
+    }
+    .conf-bg { background: var(--border); border-radius: 4px; height: 8px; }
+    .conf-fill { height: 8px; border-radius: 4px; }
+
+    /* Timeline */
+    .tl-hd {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-2);
+      font-weight: 600; margin-bottom: 14px;
+    }
+    .tl-item { display: flex; gap: 12px; position: relative; margin-bottom: 18px; }
+    .tl-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 4px; top: 14px;
+      width: 1px; height: calc(100% + 4px);
+      background: var(--border);
+    }
+    .tl-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+    }
+    .tl-dot.done    { background: var(--success); }
+    .tl-dot.pending { background: var(--surface); border: 2px solid var(--text-2); }
+    .tl-lbl  { font-size: 13px; font-weight: 500; }
+    .tl-time { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+    /* Spinner */
+    .spin {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">ResolveIQ <span class="nav-slash">/ Ops</span></div>
+  <div class="nav-sep"></div>
+  <select class="nav-tenant" id="tenantSel" title="Select tenant" aria-label="Tenant"></select>
+  <div class="nav-space"></div>
+  <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle dark mode">☾</button>
+</nav>
+
+<div class="banner" id="banner" role="status" aria-live="polite">
+  <span aria-hidden="true">⚠</span> Server offline — showing demo data
+</div>
+
+<main>
+  <div class="row-hd">
+    <div class="row-label">Overview</div>
+    <div class="last-up" id="lastUp"></div>
+  </div>
+
+  <div class="stats">
+    <div class="tile" style="--tile-color:var(--accent)">
+      <div class="tile-lbl">Total Cases</div>
+      <div class="tile-val" id="stTotal">—</div>
+      <div class="tile-sub" id="stTotalSub">&nbsp;</div>
+    </div>
+    <div class="tile" style="--tile-color:var(--warning)">
+      <div class="tile-lbl">Active</div>
+      <div class="tile-val" id="stActive">—</div>
+      <div class="tile-sub" id="stActiveSub">&nbsp;</div>
+    </div>
+    <div class="tile" style="--tile-color:var(--success)">
+      <div class="tile-lbl">Resolved</div>
+      <div class="tile-val" id="stResolved">—</div>
+      <div class="tile-sub" id="stResSub">&nbsp;</div>
+    </div>
+    <div class="tile" style="--tile-color:var(--danger)">
+      <div class="tile-lbl">Escalated</div>
+      <div class="tile-val" id="stEsc">—</div>
+      <div class="tile-sub" id="stEscSub">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filters">
+      <select id="fStatus" aria-label="Filter by status">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="resolved">Resolved</option>
+        <option value="escalated">Escalated</option>
+        <option value="pending">Pending</option>
+      </select>
+      <select id="fIssue" aria-label="Filter by issue type">
+        <option value="">All Issues</option>
+        <option value="late_delivery">Late Delivery</option>
+        <option value="wrong_item">Wrong Item</option>
+        <option value="missing_item">Missing Item</option>
+        <option value="refund">Refund</option>
+      </select>
+      <input type="text" id="fSearch" placeholder="Search ID, customer, order…" aria-label="Search cases">
+      <button class="btn-refresh" id="refreshBtn" aria-label="Refresh data">
+        <span id="refreshIco" aria-hidden="true">↻</span> Refresh
+      </button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Order</th>
+            <th>Customer</th>
+            <th>Issue</th>
+            <th>Status</th>
+            <th>Risk</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="7" class="empty"><div class="spin"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<div class="overlay" id="overlay"></div>
+<div class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Case detail">
+  <div class="panel-hd">
+    <div class="panel-hd-info">
+      <div class="panel-title" id="pTitle">Case detail</div>
+      <div class="panel-sub" id="pSub"></div>
+    </div>
+    <button class="panel-close" id="panelClose" aria-label="Close panel">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const BASE = 'http://localhost:8000';
+  const REFRESH_MS = 30000;
+
+  const state = { tenant: 'demo_foodco', allCases: [], cases: [], selected: null, offline: false, timer: null };
+
+  // Demo fallback
+  const DEMO_CASES = [
+    { case_id:'CASE-1728000001-aa11', tenant_id:'demo_foodco', customer_id:'CUST-001', reference_id:'ORD-005', issue_type:'late_delivery',  claim_text:'Order arrived 90 minutes late — food was cold on arrival.', status:'resolved',  risk_score:15, evidence_confidence:85, recommended_resolution:'partial_refund', actual_resolution:'partial_refund', escalation_status:null,          created_at:'2026-10-06T10:23:45Z', updated_at:'2026-10-06T10:25:12Z' },
+    { case_id:'CASE-1728000002-bb22', tenant_id:'demo_foodco', customer_id:'CUST-007', reference_id:'ORD-012', issue_type:'wrong_item',      claim_text:'Received beef burger; I ordered the veggie option.',       status:'active',    risk_score:62, evidence_confidence:55, recommended_resolution:'full_refund',    actual_resolution:null,              escalation_status:null,          created_at:'2026-10-06T11:00:00Z', updated_at:'2026-10-06T11:00:00Z' },
+    { case_id:'CASE-1728000003-cc33', tenant_id:'demo_foodco', customer_id:'CUST-014', reference_id:'ORD-019', issue_type:'missing_item',    claim_text:'Fries and drink were missing from the delivery bag.',      status:'escalated', risk_score:78, evidence_confidence:30, recommended_resolution:'full_refund',    actual_resolution:null,              escalation_status:'needs_review', created_at:'2026-10-06T09:10:00Z', updated_at:'2026-10-06T09:45:00Z' },
+    { case_id:'CASE-1728000004-dd44', tenant_id:'demo_foodco', customer_id:'CUST-023', reference_id:'ORD-031', issue_type:'refund',          claim_text:'Cancelled 2 min after placing order; no refund issued.',  status:'resolved',  risk_score:5,  evidence_confidence:95, recommended_resolution:'full_refund',    actual_resolution:'full_refund',     escalation_status:null,          created_at:'2026-10-05T15:30:00Z', updated_at:'2026-10-05T15:40:00Z' },
+  ];
+  const DEMO_STATS = { total:4, active:1, resolved:2, escalated:1, auto_resolved_pct:75, escalated_pct:25 };
+
+  // Helpers
+  function fmt(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ', ' +
+           d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+  }
+  function label(s) {
+    return s ? s.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
+  }
+  function riskColor(n) {
+    if (n == null) return 'var(--text-2)';
+    if (n < 30) return 'var(--success)';
+    if (n < 65) return 'var(--warning)';
+    return 'var(--danger)';
+  }
+  function issueClass(t) {
+    const m = { late_delivery:'i-late_delivery', wrong_item:'i-wrong_item', missing_item:'i-missing_item', refund:'i-refund' };
+    return m[t] || 'i-default';
+  }
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // API
+  async function api(path) {
+    const r = await fetch(BASE + path, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+
+  async function fetchTenants() {
+    const sel = document.getElementById('tenantSel');
+    try {
+      const data = await api('/api/tenants');
+      const list = Array.isArray(data) ? data : (data.tenants || []);
+      sel.innerHTML = '';
+      list.forEach(t => {
+        const id = typeof t === 'string' ? t : (t.tenant_id || t.id || String(t));
+        const o = document.createElement('option');
+        o.value = id; o.textContent = id;
+        if (id === state.tenant) o.selected = true;
+        sel.appendChild(o);
+      });
+    } catch {
+      sel.innerHTML = '<option value="demo_foodco">demo_foodco</option>';
+    }
+  }
+
+  async function fetchStats() {
+    try {
+      const s = await api('/api/cases/stats?tenant_id=' + encodeURIComponent(state.tenant));
+      renderStats(s);
+      setOffline(false);
+    } catch {
+      renderStats(DEMO_STATS);
+      setOffline(true);
+    }
+  }
+
+  async function fetchCases() {
+    const status = document.getElementById('fStatus').value;
+    let url = '/api/cases?tenant_id=' + encodeURIComponent(state.tenant) + '&limit=100&offset=0';
+    if (status) url += '&status=' + encodeURIComponent(status);
+    try {
+      const data = await api(url);
+      state.allCases = Array.isArray(data) ? data : (data.cases || []);
+      setOffline(false);
+    } catch {
+      state.allCases = DEMO_CASES;
+      setOffline(true);
+    }
+    applyFilter();
+  }
+
+  async function fetchCase(id) {
+    try { return await api('/api/cases/' + encodeURIComponent(id)); }
+    catch { return state.allCases.find(c => c.case_id === id) || null; }
+  }
+
+  // Render
+  function setOffline(v) {
+    state.offline = v;
+    document.getElementById('banner').classList.toggle('show', v);
+  }
+
+  function renderStats(s) {
+    document.getElementById('stTotal').textContent    = s.total     ?? '—';
+    document.getElementById('stActive').textContent   = s.active    ?? '—';
+    document.getElementById('stResolved').textContent = s.resolved  ?? '—';
+    document.getElementById('stEsc').textContent      = s.escalated ?? '—';
+    document.getElementById('stResSub').textContent   = s.auto_resolved_pct != null ? s.auto_resolved_pct + '% auto-resolved' : '';
+    document.getElementById('stEscSub').textContent   = s.escalated_pct     != null ? s.escalated_pct     + '% of total'      : '';
+    document.getElementById('lastUp').textContent = 'Updated ' +
+      new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  }
+
+  function applyFilter() {
+    const issue = document.getElementById('fIssue').value;
+    const q     = document.getElementById('fSearch').value.toLowerCase().trim();
+    state.cases = state.allCases.filter(c => {
+      if (issue && c.issue_type !== issue) return false;
+      if (q) {
+        const hay = (c.case_id + ' ' + c.customer_id + ' ' + c.reference_id + ' ' + c.issue_type).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    renderTable();
+  }
+
+  function renderTable() {
+    const tb = document.getElementById('tbody');
+    if (!state.cases.length) {
+      tb.innerHTML = '<tr><td colspan="7" class="empty">No cases match the current filters</td></tr>';
+      return;
+    }
+    tb.innerHTML = state.cases.map(c => {
+      const pct = Math.min(100, c.risk_score || 0);
+      const sel = state.selected?.case_id === c.case_id ? ' selected' : '';
+      return `<tr class="row${sel}" data-id="${esc(c.case_id)}">
+        <td><span class="case-id">${esc(c.case_id)}</span></td>
+        <td style="font-size:13px">${esc(c.reference_id || '—')}</td>
+        <td style="font-size:13px">${esc(c.customer_id  || '—')}</td>
+        <td><span class="badge ${issueClass(c.issue_type)}">${esc(label(c.issue_type))}</span></td>
+        <td><span class="pill s-${esc(c.status || 'pending')}">${esc(label(c.status))}</span></td>
+        <td>
+          <div class="risk">
+            <div class="risk-bg">
+              <div class="risk-fill" style="width:${pct}%;background:${riskColor(c.risk_score)}"></div>
+            </div>
+            <span class="risk-num">${c.risk_score ?? '—'}</span>
+          </div>
+        </td>
+        <td style="font-size:12px;color:var(--text-2)">${fmt(c.created_at)}</td>
+      </tr>`;
+    }).join('');
+    tb.querySelectorAll('tr.row').forEach(tr =>
+      tr.addEventListener('click', () => openPanel(tr.dataset.id))
+    );
+  }
+
+  async function openPanel(id) {
+    const c = await fetchCase(id);
+    if (!c) return;
+    state.selected = c;
+    renderTable();
+
+    document.getElementById('pTitle').textContent = c.case_id;
+    document.getElementById('pSub').textContent   =
+      label(c.issue_type) + ' · ' + label(c.status) +
+      (c.escalation_status ? ' · ' + label(c.escalation_status) : '');
+
+    const conf = c.evidence_confidence ?? 0;
+    const confColor = conf > 70 ? 'var(--success)' : conf > 40 ? 'var(--warning)' : 'var(--danger)';
+
+    document.getElementById('panelBody').innerHTML = `
+      <div class="d-grid">
+        <div class="d-item"><label>Customer</label><span>${esc(c.customer_id || '—')}</span></div>
+        <div class="d-item"><label>Order Ref</label><span>${esc(c.reference_id || '—')}</span></div>
+        <div class="d-item"><label>Tenant</label><span>${esc(c.tenant_id || '—')}</span></div>
+        <div class="d-item"><label>Risk Score</label><span style="color:${riskColor(c.risk_score)};font-variant-numeric:tabular-nums">${c.risk_score ?? '—'} / 100</span></div>
+        <div class="d-item d-wide"><label>Claim</label><span style="font-weight:400;line-height:1.6">${esc(c.claim_text || '—')}</span></div>
+        <div class="d-item"><label>Recommended</label><span>${esc(label(c.recommended_resolution))}</span></div>
+        <div class="d-item"><label>Actual Resolution</label><span>${c.actual_resolution ? esc(label(c.actual_resolution)) : '<span style="color:var(--text-2);font-weight:400">Pending</span>'}</span></div>
+        <div class="d-item"><label>Opened</label><span style="font-size:12px">${fmt(c.created_at)}</span></div>
+        <div class="d-item"><label>Last Updated</label><span style="font-size:12px">${fmt(c.updated_at)}</span></div>
+        ${c.session_id ? `<div class="d-item d-wide"><label>Session ID</label><span style="font-size:11px;color:var(--text-2);font-family:monospace">${esc(c.session_id)}</span></div>` : ''}
+      </div>
+      <div class="conf">
+        <div class="conf-hd">
+          <span>Evidence Confidence</span>
+          <span style="font-variant-numeric:tabular-nums">${conf}%</span>
+        </div>
+        <div class="conf-bg">
+          <div class="conf-fill" style="width:${conf}%;background:${confColor}"></div>
+        </div>
+      </div>
+      <div>
+        <div class="tl-hd">Timeline</div>
+        ${buildTimeline(c)}
+      </div>`;
+
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('panel').classList.add('open');
+    document.getElementById('panelClose').focus();
+  }
+
+  function buildTimeline(c) {
+    const events = [{ label:'Case opened', time:c.created_at, done:true }];
+    if (c.status === 'active') {
+      events.push({ label:'Awaiting resolution', time:null, done:false });
+    } else if (c.status === 'escalated') {
+      events.push({ label:'Escalated' + (c.escalation_status ? ' — ' + label(c.escalation_status) : ''), time:c.updated_at, done:true });
+    } else if (c.status === 'resolved') {
+      events.push({ label:'Resolved' + (c.actual_resolution ? ' — ' + label(c.actual_resolution) : ''), time:c.updated_at, done:true });
+    } else {
+      events.push({ label:label(c.status), time:c.updated_at, done:true });
+    }
+    return events.map(e => `
+      <div class="tl-item">
+        <div class="tl-dot ${e.done ? 'done' : 'pending'}"></div>
+        <div>
+          <div class="tl-lbl">${esc(e.label)}</div>
+          <div class="tl-time">${e.time ? fmt(e.time) : 'Pending'}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function closePanel() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('panel').classList.remove('open');
+    state.selected = null;
+    renderTable();
+  }
+
+  // Refresh
+  async function refresh() {
+    const btn = document.getElementById('refreshBtn');
+    const ico = document.getElementById('refreshIco');
+    btn.disabled = true;
+    ico.className = 'spin';
+    ico.textContent = '';
+    await Promise.all([fetchStats(), fetchCases()]);
+    btn.disabled = false;
+    ico.className = '';
+    ico.textContent = '↻';
+    clearTimeout(state.timer);
+    state.timer = setTimeout(refresh, REFRESH_MS);
+  }
+
+  // Events
+  document.getElementById('tenantSel').addEventListener('change', e => { state.tenant = e.target.value; refresh(); });
+  document.getElementById('fStatus').addEventListener('change', fetchCases);
+  document.getElementById('fIssue').addEventListener('change', applyFilter);
+  document.getElementById('fSearch').addEventListener('input', applyFilter);
+  document.getElementById('refreshBtn').addEventListener('click', refresh);
+  document.getElementById('overlay').addEventListener('click', closePanel);
+  document.getElementById('panelClose').addEventListener('click', closePanel);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const root = document.documentElement;
+    const cur  = root.getAttribute('data-theme');
+    const dark = cur === 'dark' || (!cur && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    document.getElementById('themeBtn').textContent = dark ? '☾' : '☀';
+  });
+
+  // Init
+  (async () => {
+    await fetchTenants();
+    await refresh();
+  })();
+})();
+</script>
+</body>
+</html>

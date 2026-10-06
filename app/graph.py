@@ -48,9 +48,15 @@ from pydantic import BaseModel, Field
 
 from app.config import (
     GROQ_API_KEY, LLM_MODEL, LLM_PROVIDER, OPENAI_API_KEY,
+    OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_MODEL,
     ESCALATIONS_LOG, MAX_REJECTION_ATTEMPTS, ALLERGEN_ALWAYS_ESCALATE,
     POLICY_CONFIDENCE_MIN, DEV_FAIL_LOUD,
     EVIDENCE_RISK_THRESHOLD,
+    LATE_DELIVERY_NONE_MIN, LATE_DELIVERY_LOW_MIN, LATE_DELIVERY_MEDIUM_MIN,
+)
+from app.verification import (
+    VerificationResult, get_verifier_type, verify_timestamps, _PHOTO_TYPES,
+    verify_allergen, verify_food,
 )
 from app.escalation import check_escalation
 from app.handoff import generate_handoff_summary, build_escalation_record
@@ -127,10 +133,13 @@ class AgentState(TypedDict):
     selected_resolution_type: Optional[str]  # set when action == "select"
     # Typed dissatisfaction counter for current complaint (resets on new complaint / execution)
     dissatisfaction_count: int
-    # Photo-evidence verification
+    # Photo-evidence verification (raw upload result — kept for /api/session/evidence endpoint)
     evidence_required: bool
     evidence_result: Optional[dict]   # EvidenceResult.to_dict() after upload + check
     evidence_path: Optional[str]      # thumbnail path for handoff brief
+    # Cross-check verification layer (runs before adjudication)
+    verification_result: Optional[dict]   # VerificationResult.to_dict()
+    case_status: Optional[str]            # None | "awaiting_evidence"
     # Response
     final_response: Optional[str]
     token_log: list[dict]
@@ -162,17 +171,104 @@ class ConfirmOutput(BaseModel):
 
 # ── LLM factory ──────────────────────────────────────────────────────────────
 
+# Groq HTTP status codes that should trigger OpenRouter fallback
+_GROQ_RETRYABLE_CODES: frozenset[int] = frozenset({
+    401,   # invalid / expired key
+    429,   # rate limit
+    500,   # groq internal error
+    502,
+    503,
+    504,
+})
+
+
+def _is_groq_retriable(exc: Exception) -> bool:
+    """Return True for Groq errors that should fall over to OpenRouter."""
+    msg = str(exc).lower()
+    # groq SDK wraps HTTP errors; check status code attr first, then message
+    code = getattr(exc, "status_code", None) or getattr(exc, "http_status", None)
+    if code in _GROQ_RETRYABLE_CODES:
+        return True
+    return any(kw in msg for kw in (
+        "invalid api key", "authentication", "rate limit",
+        "quota", "overloaded", "service unavailable",
+    ))
+
+
+def _build_openrouter_llm():
+    if not OPENROUTER_API_KEY:
+        return None
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(
+        model=OPENROUTER_MODEL,
+        api_key=OPENROUTER_API_KEY,
+        base_url=OPENROUTER_BASE_URL,
+        temperature=0,
+    )
+
+
+class _FallbackLLM:
+    """
+    Thin wrapper: calls `primary` first.  On a retriable Groq error it
+    transparently falls over to `fallback` (OpenRouter).  If `fallback` is
+    None the original exception is re-raised.
+    """
+
+    def __init__(self, primary, fallback, structured_output_class=None):
+        self._primary  = primary
+        self._fallback = fallback
+        self._soc      = structured_output_class
+
+    # Support llm.with_structured_output(cls) chaining
+    def with_structured_output(self, schema):
+        p = self._primary.with_structured_output(schema)
+        f = self._fallback.with_structured_output(schema) if self._fallback else None
+        return _FallbackLLM(p, f, structured_output_class=schema)
+
+    def invoke(self, *args, **kwargs):
+        try:
+            return self._primary.invoke(*args, **kwargs)
+        except Exception as exc:
+            if self._fallback and _is_groq_retriable(exc):
+                logger.warning(
+                    "Groq call failed (%s) — falling back to OpenRouter.", exc
+                )
+                return self._fallback.invoke(*args, **kwargs)
+            raise
+
+    async def ainvoke(self, *args, **kwargs):
+        try:
+            return await self._primary.ainvoke(*args, **kwargs)
+        except Exception as exc:
+            if self._fallback and _is_groq_retriable(exc):
+                logger.warning(
+                    "Groq ainvoke failed (%s) — falling back to OpenRouter.", exc
+                )
+                return await self._fallback.ainvoke(*args, **kwargs)
+            raise
+
+    # Pass through anything else (stream, batch, …)
+    def __getattr__(self, name):
+        return getattr(self._primary, name)
+
+
 def _get_llm(structured_output_class=None):
     if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
         from langchain_openai import ChatOpenAI
         llm = ChatOpenAI(model=LLM_MODEL, temperature=0)
-    else:
-        from langchain_groq import ChatGroq
-        llm = ChatGroq(model=LLM_MODEL, temperature=0, api_key=GROQ_API_KEY)
+        if structured_output_class:
+            return llm.with_structured_output(structured_output_class)
+        return llm
 
+    # Primary: Groq
+    from langchain_groq import ChatGroq
+    primary = ChatGroq(model=LLM_MODEL, temperature=0, api_key=GROQ_API_KEY)
+    fallback = _build_openrouter_llm()
+
+    wrapped = _FallbackLLM(primary, fallback)
     if structured_output_class:
-        return llm.with_structured_output(structured_output_class)
-    return llm
+        return wrapped.with_structured_output(structured_output_class)
+    return wrapped
 
 
 # ── Audit log helper ─────────────────────────────────────────────────────────
@@ -204,12 +300,14 @@ def _log_audit(session_id: str, order_id: Optional[str], customer_id: Optional[s
 # dietary_mismatch) from contaminating the LLM's reasoning.
 _COMPLAINT_ORDER_FIELDS: dict[str, set] = {
     "late_delivery":      {"order_id", "status", "estimated_delivery_min",
-                           "actual_delivery_min", "total"},
+                           "actual_delivery_min", "promised_eta_at_order_time",
+                           "actual_delivered_at", "total"},
     "missing_item":       {"order_id", "status", "items", "total"},
     "quality_issue":      {"order_id", "status", "items", "total"},
     "wrong_order":        {"order_id", "status", "items", "total"},
     "dietary_mismatch":   {"order_id", "status", "items", "total"},
     "allergen_violation": {"order_id", "status", "items", "total"},
+    "foreign_object":     {"order_id", "status", "items", "total"},
     "freebie_missing":    {"order_id", "status", "items", "total"},
     "payment_issue":      {"order_id", "status", "total"},
     "refund_status":      {"order_id", "status", "refund_amount", "total"},
@@ -267,8 +365,8 @@ def _resolution_label(rt: str) -> str:
     return _RESOLUTION_LABELS.get(rt, rt.replace("_", " ").title())
 
 
-# Complaint types that require photo evidence when HIGH or risk_score > threshold
-_EVIDENCE_REQUIRED_TYPES = frozenset({"wrong_order", "quality_issue", "dietary_mismatch", "damaged"})
+# Kept for backward compat; verification layer now uses _PHOTO_TYPES from app.verification
+_EVIDENCE_REQUIRED_TYPES = _PHOTO_TYPES
 
 # Severity tier ordering (high → low) for "cap one tier lower" rule
 _SEVERITY_TIERS = ("HIGH", "MEDIUM", "LOW")
@@ -297,6 +395,11 @@ def route_after_escalation_check(state: AgentState) -> str:
     result = state.get("_escalation_check", {})
     if result.get("should_escalate") and result.get("is_hard_stop"):
         return "acknowledge"
+    # Resume photo verification when awaiting evidence and the user acted
+    if state.get("case_status") == "awaiting_evidence" and state.get("action") in (
+        "evidence_uploaded", "skip_evidence"
+    ):
+        return "verification"
     if state.get("pending_offer") and not result.get("should_escalate"):
         return "confirm"
     return "intake"
@@ -447,6 +550,141 @@ def route_after_intake(state: AgentState) -> str:
         return "acknowledge"
     if state.get("resolution_type") == "need_order_id":
         return "request_info"
+    return "verification"
+
+
+# ── Node: verification ────────────────────────────────────────────────────────
+
+def verification_node(state: AgentState) -> dict:
+    """
+    Cross-check verification between intake and adjudication.
+
+    First pass (new complaint):
+      - Photo type  → set case_status='awaiting_evidence', return upload prompt, END turn.
+      - Timestamps  → run verify_timestamps(), set verification_result.
+      - None type   → set verification_result = not_applicable.
+
+    Second pass (resumed after evidence upload or skip):
+      - Build VerificationResult from evidence_result (or inconclusive for skip).
+      - Clear case_status, route to adjudication.
+    """
+    complaint_type  = state.get("complaint_type", "")
+    action          = state.get("action")
+    case_status_val = state.get("case_status")
+    verifier_type   = get_verifier_type(complaint_type)
+
+    # ── Resume: user uploaded a photo or skipped ───────────────────────────────
+    if case_status_val == "awaiting_evidence":
+        evidence_result = state.get("evidence_result")
+
+        if action == "skip_evidence" or not evidence_result:
+            ver = VerificationResult(
+                status="inconclusive", method="photo",
+                confidence=0.0,
+                observations=["Customer skipped photo upload"],
+                flags=["upload_skipped"],
+            )
+        elif complaint_type in ("dietary_mismatch", "wrong_order"):
+            # Food-specific vision verification (menu-aware decision rules)
+            ver = verify_food(
+                state.get("order_details") or {},
+                complaint_type,
+                evidence_result,
+                state.get("claim_description", ""),
+            )
+        else:
+            # Generic photo evidence path (phash + EXIF + vision)
+            ver = VerificationResult.from_evidence(evidence_result)
+
+        _log_audit(
+            state.get("session_id", ""), state.get("order_id"), state.get("customer_id"),
+            "VERIFICATION_PHOTO",
+            {"complaint_type": complaint_type, "status": ver.status,
+             "flags": ver.flags, "confidence": ver.confidence},
+        )
+        return {
+            "verification_result": ver.to_dict(),
+            "case_status":         None,
+            "evidence_required":   False,
+            "action":              None,
+        }
+
+    # ── First pass: allergen claim → menu data only, no photo needed ───────────
+    if verifier_type == "photo" and complaint_type == "dietary_mismatch":
+        allergens_declared = state.get("allergens_declared") or []
+        allergen_safety    = state.get("allergen_safety", False)
+        if allergen_safety or allergens_declared:
+            ver = verify_allergen(
+                state.get("order_details") or {},
+                allergens_declared,
+            )
+            _log_audit(
+                state.get("session_id", ""), state.get("order_id"), state.get("customer_id"),
+                "VERIFICATION_ALLERGEN",
+                {"complaint_type": complaint_type, "status": ver.status,
+                 "flags": ver.flags},
+            )
+            return {"verification_result": ver.to_dict(), "case_status": None}
+
+    # ── First pass: photo type → request upload ────────────────────────────────
+    if verifier_type == "photo":
+        order_id     = state.get("order_id", "")
+        customer_name = state.get("customer_name") or ""
+        name_prefix  = f"Hi {customer_name}, " if customer_name else ""
+        ct_display   = complaint_type.replace("_", " ")
+        msg = (
+            f"{name_prefix}to process your {ct_display} claim for order {order_id}, "
+            "I need to verify the issue with a photo. Please upload a clear image showing "
+            "the problem (JPEG, PNG or WebP, max 8 MB). You can tap 📷 or skip to see options."
+        )
+        pending_offer_upload = {
+            "evidence_required": True,
+            "resolution_type":   None,
+            "compensation_amount": None,
+            "order_id":          order_id,
+            "customer_id":       state.get("customer_id"),
+            "offer_text":        msg,
+            "resolution_options": [],
+            "created_at":        datetime.now(timezone.utc).isoformat(),
+        }
+        return {
+            "case_status":     "awaiting_evidence",
+            "final_response":  msg,
+            "messages":        [AIMessage(content=msg)],
+            "pending_offer":   pending_offer_upload,
+            "evidence_required": True,
+        }
+
+    # ── First pass: timestamp type → verify delivery times ────────────────────
+    if verifier_type == "timestamps":
+        order_details = state.get("order_details")
+        if not order_details:
+            order_details = get_order_details(state.get("order_id") or "")
+        ver = verify_timestamps(
+            order_details or {},
+            state.get("claim_description", ""),
+            none_min=LATE_DELIVERY_NONE_MIN,
+            low_min=LATE_DELIVERY_LOW_MIN,
+            medium_min=LATE_DELIVERY_MEDIUM_MIN,
+        )
+        _log_audit(
+            state.get("session_id", ""), state.get("order_id"), state.get("customer_id"),
+            "VERIFICATION_TIMESTAMPS",
+            {"complaint_type": complaint_type, "status": ver.status,
+             "flags": ver.flags},
+        )
+        return {"verification_result": ver.to_dict(), "case_status": None}
+
+    # ── First pass: none / not_applicable ─────────────────────────────────────
+    return {
+        "verification_result": VerificationResult.not_applicable().to_dict(),
+        "case_status":         None,
+    }
+
+
+def route_after_verification(state: AgentState) -> str:
+    if state.get("case_status") == "awaiting_evidence":
+        return END   # waiting for photo upload — turn ends here
     return "adjudication"
 
 
@@ -493,7 +731,6 @@ def adjudication_node(state: AgentState) -> dict:
             "customer_email": None,
             "severity": "UNKNOWN",
             "allergen_safety": False,
-            "evidence_required": False,
         }
 
     customer_id    = order.get("customer_id", "")
@@ -556,18 +793,31 @@ def adjudication_node(state: AgentState) -> dict:
             "reasoning": "Order already refunded. Possible duplicate claim.",
             "risk_score": risk_score, "risk_flags": risk_flags + ["Order already refunded"],
             "compensation_amount": None, "severity": severity, "allergen_safety": allergen_safety,
-            "evidence_required": False,
         }
 
     if allergen_safety and ALLERGEN_ALWAYS_ESCALATE:
+        # Distinguish foreign_object critical from allergen safety for escalation messaging
+        esc_type = (
+            "foreign_object_critical"
+            if complaint_type == "foreign_object"
+            else "allergen"
+        )
         return {
             "order_details": order, "customer_id": customer_id,
             "customer_name": customer_name, "customer_email": customer_email,
             "resolution_type": "escalate",
-            "reasoning": "Allergen safety: customer declared allergen present in order.",
-            "risk_score": risk_score, "risk_flags": risk_flags + ["Allergen safety flag"],
+            "reasoning": (
+                "Foreign object ingested/illness reported — immediate safety escalation."
+                if esc_type == "foreign_object_critical"
+                else "Allergen safety: customer declared allergen present in order."
+            ),
+            "risk_score": risk_score, "risk_flags": risk_flags + ["Safety escalation flag"],
             "compensation_amount": order_total, "severity": "CRITICAL", "allergen_safety": True,
-            "evidence_required": False,
+            "_escalation_check": {
+                "should_escalate": True, "is_hard_stop": True,
+                "escalation_type": esc_type,
+                "reason": "Safety escalation.",
+            },
         }
 
     if risk_score > 50:
@@ -588,7 +838,6 @@ def adjudication_node(state: AgentState) -> dict:
             "reasoning": f"No options available for {complaint_type}/{severity}.",
             "risk_score": risk_score, "risk_flags": risk_flags,
             "compensation_amount": None, "severity": severity, "allergen_safety": allergen_safety,
-            "evidence_required": False,
         }
 
     # priority_handling guard: only valid when order is still in-progress
@@ -641,19 +890,66 @@ def adjudication_node(state: AgentState) -> dict:
         all_flags = risk_flags + [f"LLM adjudication error ({type(e).__name__}) — deterministic"]
         result = type("R", (), {"reasoning": f"LLM unavailable. Matrix: {matrix_options}.", "risk_flags": []})()
 
-    # Compute amount for the primary (first non-escalate) option only; offer_node handles all
-    final_amount = compute_option_amount(resolution_type, order_total, complaint_type, severity)
+    # ── Apply verification-layer severity adjustments ──────────────────────────
+    ver = state.get("verification_result") or {}
+    ver_status = ver.get("status", "not_applicable")
+    ver_method = ver.get("method", "none")
+    ver_flags  = ver.get("flags", [])
 
-    # Determine whether this complaint needs photo evidence before showing options.
-    # Rules: complaint type must be in the evidence set, severity must not be LOW,
-    # and either severity is HIGH or the risk_score exceeds the configured threshold.
-    # Never re-request when evidence was already provided this session.
-    evidence_required = (
-        complaint_type in _EVIDENCE_REQUIRED_TYPES
-        and severity != "LOW"
-        and (severity == "HIGH" or risk_score > EVIDENCE_RISK_THRESHOLD)
-        and not state.get("evidence_result")
-    )
+    # Photo contradicted or duplicate → escalate immediately (spec: never auto-deny)
+    if ver_method == "photo" and ver_status == "contradicted":
+        return {
+            "order_details": order, "customer_id": customer_id,
+            "customer_name": customer_name, "customer_email": customer_email,
+            "resolution_type": "escalate",
+            "reasoning": "Photo evidence contradicted or was a duplicate — escalating for human review.",
+            "risk_score": risk_score, "risk_flags": all_flags + ["photo_contradicted"],
+            "compensation_amount": None, "severity": severity, "allergen_safety": allergen_safety,
+            "resolution_attempts": state.get("resolution_attempts", 0) + 1,
+            "_escalation_check": {
+                "should_escalate": True, "is_hard_stop": False,
+                "escalation_type": "evidence_rejected",
+                "reason": "Photo evidence inconsistent or previously seen.",
+            },
+        }
+
+    # Photo inconclusive → cap severity one tier lower + ensure escalate button visible
+    if ver_method == "photo" and ver_status == "inconclusive":
+        severity = _lower_severity(severity)
+        all_flags.append("photo_inconclusive_severity_capped")
+
+    # Timestamps contradicted → mark for factual message in offer_node
+    if ver_method == "timestamps" and ver_status == "contradicted":
+        all_flags.append("timestamp_claim_contradicted")
+
+    # Timestamps verified → use data-derived severity from flags
+    if ver_method == "timestamps" and ver_status == "verified":
+        for flag in ver_flags:
+            if flag.startswith("data_severity:"):
+                data_sev = flag.split(":", 1)[1].upper()
+                if data_sev in ("HIGH", "MEDIUM", "LOW"):
+                    severity = data_sev
+                break
+
+    # Re-derive matrix options with the potentially adjusted severity
+    matrix_options = get_options(complaint_type, severity) or matrix_options
+    if "priority_handling" in matrix_options and order_status not in ("preparing", "out_for_delivery"):
+        matrix_options = [o for o in matrix_options if o != "priority_handling"]
+    non_esc = [o for o in matrix_options if o != "escalate"]
+    resolution_type = non_esc[0] if non_esc else "escalate"
+
+    # Verified foreign_object → log restaurant hygiene flag
+    if complaint_type == "foreign_object" and ver_status == "verified":
+        all_flags.append("restaurant_hygiene_flag")
+        _log_audit(
+            state.get("session_id", ""), order_id, customer_id,
+            "HYGIENE_FLAG",
+            {"complaint_type": complaint_type, "order_id": order_id,
+             "verification_confidence": ver.get("confidence", 0)},
+        )
+
+    # ── Compute final amount ───────────────────────────────────────────────────
+    final_amount = compute_option_amount(resolution_type, order_total, complaint_type, severity)
 
     _log_audit(
         state.get("session_id", ""), order_id, customer_id,
@@ -661,7 +957,7 @@ def adjudication_node(state: AgentState) -> dict:
         {"resolution_type": resolution_type, "severity": severity,
          "risk_score": risk_score, "amount": final_amount,
          "complaint_type": complaint_type,
-         "evidence_required": evidence_required},
+         "verification_status": ver_status, "verification_method": ver_method},
     )
 
     return {
@@ -677,7 +973,6 @@ def adjudication_node(state: AgentState) -> dict:
         "severity": severity,
         "allergen_safety": allergen_safety,
         "resolution_attempts": state.get("resolution_attempts", 0) + 1,
-        "evidence_required": evidence_required,
     }
 
 
@@ -708,73 +1003,36 @@ def offer_node(state: AgentState) -> dict:
     correction_detected = state.get("correction_detected", False)
     dissatisfaction_count = state.get("dissatisfaction_count", 0)
     order_total         = float((state.get("order_details") or {}).get("total", 0))
-    evidence_required   = state.get("evidence_required", False)
-    evidence_result     = state.get("evidence_result")
+    ver                 = state.get("verification_result") or {}
+    ver_method          = ver.get("method", "none")
+    ver_status          = ver.get("status", "not_applicable")
+    risk_flags          = list(state.get("risk_flags") or [])
 
-    # ── Evidence gate: request upload ─────────────────────────────────────────
-    if evidence_required and not evidence_result:
-        name_prefix = f"Hi {customer_name}, " if customer_name else ""
+    # ── Timestamp claim contradicts data → factual explanation + human option ─
+    if ver_method == "timestamps" and ver_status == "contradicted" and "timestamp_claim_contradicted" in risk_flags:
+        obs_lines = ver.get("observations", [])
+        factual   = " ".join(obs_lines) or "Our records do not show a significant delivery delay."
         msg = (
-            f"{name_prefix}before I process your claim for order {order_id}, "
-            "I need to verify the issue. Please upload a clear photo showing the problem "
-            "(JPEG, PNG or WebP, max 8 MB). You can also skip and I'll show your options."
+            f"I've reviewed the delivery records for order {order_id}. "
+            f"{factual} "
+            "If you believe our records are incorrect, a human agent can look into this further."
         )
+        resolution_options = [{"type": "escalate", "label": "Talk to a Human Agent", "amount": None}]
         pending_offer = {
-            "evidence_required": True,
-            "resolution_type": None,
+            "resolution_type": "escalate",
             "compensation_amount": None,
             "order_id": order_id,
             "customer_id": state.get("customer_id"),
             "offer_text": msg,
-            "resolution_options": [],
+            "resolution_options": resolution_options,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        _log_audit(
-            state.get("session_id", ""), order_id, state.get("customer_id"),
-            "EVIDENCE_REQUEST",
-            {"complaint_type": complaint_type, "severity": severity},
-        )
         return {
             "final_response": msg,
             "messages": [AIMessage(content=msg)],
             "pending_offer": pending_offer,
+            "resolution_type": "escalate",
         }
-
-    # ── Evidence decision rules ───────────────────────────────────────────────
-    if evidence_required and evidence_result:
-        verdict    = evidence_result.get("verdict", "inconclusive")
-        duplicate  = evidence_result.get("duplicate_image", False)
-        obs        = evidence_result.get("observations", [])
-        thumb_path = evidence_result.get("thumbnail_path", "")
-
-        if verdict == "inconsistent" or duplicate:
-            reason = (
-                "Duplicate image detected across prior claims."
-                if duplicate
-                else f"Evidence inconsistent with claim: {'; '.join(obs[:2])}"
-            )
-            _log_audit(
-                state.get("session_id", ""), order_id, state.get("customer_id"),
-                "EVIDENCE_ESCALATE",
-                {"verdict": verdict, "duplicate": duplicate, "observations": obs,
-                 "thumbnail": thumb_path},
-            )
-            return {
-                "resolution_type": "escalate",
-                "_escalation_check": {
-                    "should_escalate": True,
-                    "is_hard_stop": False,
-                    "escalation_type": "evidence_rejected",
-                    "reason": reason,
-                },
-                "final_response": None,
-                "pending_offer": None,
-                "evidence_path": thumb_path,
-            }
-
-        # Inconclusive (or skipped) → cap severity one tier lower + force escalate button
-        if verdict == "inconclusive":
-            severity = _lower_severity(severity)
 
     # Build option list — add escalate for MEDIUM/LOW after first dissatisfaction
     if dissatisfaction_count > 0:
@@ -793,8 +1051,8 @@ def offer_node(state: AgentState) -> dict:
     if not all_options:
         all_options = ["escalate"]
 
-    # Inconclusive evidence → always include escalate button so customer has an exit
-    if evidence_required and evidence_result and evidence_result.get("verdict") == "inconclusive":
+    # Photo inconclusive (severity capped) → always show escalate button as an exit
+    if ver_method == "photo" and ver_status == "inconclusive":
         if "escalate" not in all_options:
             all_options = all_options + ["escalate"]
 
@@ -886,14 +1144,6 @@ def confirm_node(state: AgentState) -> dict:
 
     # ── 1. Deterministic path: frontend button sent an explicit action ─────────
     action = state.get("action")
-
-    if action in ("evidence_uploaded", "skip_evidence"):
-        # After photo upload or explicit skip — re-enter offer_node to apply rules
-        return {
-            "confirm_response": "evidence_submitted",
-            "action": None,
-            "selected_resolution_type": None,
-        }
 
     if action == "accept":
         return {
@@ -1020,8 +1270,6 @@ def route_after_confirm(state: AgentState) -> str:
         # Second (or more) typed dissatisfaction → escalate
         if state.get("dissatisfaction_count", 0) >= 2:
             return "escalate"
-        return "offer"
-    elif cr == "evidence_submitted":
         return "offer"
     else:
         return "offer"
@@ -1213,6 +1461,7 @@ def build_graph():
     g.add_node("escalation_check", escalation_check_node)
     g.add_node("acknowledge",      acknowledge_node)
     g.add_node("intake",           intake_node)
+    g.add_node("verification",     verification_node)
     g.add_node("request_info",     request_info_node)
     g.add_node("adjudication",     adjudication_node)
     g.add_node("offer",            offer_node)
@@ -1226,9 +1475,10 @@ def build_graph():
         "escalation_check",
         route_after_escalation_check,
         {
-            "acknowledge": "acknowledge",
-            "confirm":     "confirm",
-            "intake":      "intake",
+            "acknowledge":  "acknowledge",
+            "confirm":      "confirm",
+            "intake":       "intake",
+            "verification": "verification",
         },
     )
 
@@ -1240,11 +1490,20 @@ def build_graph():
         {
             "acknowledge":  "acknowledge",
             "request_info": "request_info",
-            "adjudication": "adjudication",
+            "verification": "verification",
         },
     )
 
     g.add_edge("request_info", END)
+
+    g.add_conditional_edges(
+        "verification",
+        route_after_verification,
+        {
+            "adjudication": "adjudication",
+            END:            END,
+        },
+    )
 
     g.add_conditional_edges(
         "adjudication",
@@ -1268,12 +1527,11 @@ def build_graph():
         "confirm",
         route_after_confirm,
         {
-            "execute":            "execute",
-            "intake":             "intake",
-            "adjudication":       "adjudication",
-            "escalate":           "escalate",
-            "offer":              "offer",   # dissatisfied / evidence_submitted
-            "evidence_submitted": "offer",   # explicit alias kept for clarity
+            "execute":      "execute",
+            "intake":       "intake",
+            "adjudication": "adjudication",
+            "escalate":     "escalate",
+            "offer":        "offer",
         },
     )
 

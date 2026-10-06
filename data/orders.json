@@ -14,6 +14,8 @@
       "status": "delivered",
       "estimated_delivery_min": 30,
       "actual_delivery_min": 35,
+      "promised_eta_at_order_time": "2024-01-15T12:30:00Z",
+      "actual_delivered_at": "2024-01-15T12:35:00Z",
       "payment_method": "card",
       "payment_status": "paid"
     },
@@ -31,6 +33,8 @@
       "status": "delivered",
       "estimated_delivery_min": 40,
       "actual_delivery_min": 42,
+      "promised_eta_at_order_time": "2024-01-15T12:40:00Z",
+      "actual_delivered_at": "2024-01-15T12:42:00Z",
       "payment_method": "card",
       "payment_status": "paid",
       "_note": "Garlic bread missing from delivery bag — valid partial refund case"
@@ -49,6 +53,8 @@
       "status": "delivered",
       "estimated_delivery_min": 35,
       "actual_delivery_min": 38,
+      "promised_eta_at_order_time": "2024-01-15T12:35:00Z",
+      "actual_delivered_at": "2024-01-15T12:38:00Z",
       "payment_method": "paypal",
       "payment_status": "paid",
       "_note": "Quality issue — food arrived cold"
@@ -67,6 +73,8 @@
       "status": "delivered",
       "estimated_delivery_min": 45,
       "actual_delivery_min": 50,
+      "promised_eta_at_order_time": "2024-01-15T12:45:00Z",
+      "actual_delivered_at": "2024-01-15T12:50:00Z",
       "payment_method": "card",
       "payment_status": "paid",
       "_note": "Wrong order — received a burger order instead of sushi"
@@ -85,6 +93,8 @@
       "status": "delivered",
       "estimated_delivery_min": 30,
       "actual_delivery_min": 125,
+      "promised_eta_at_order_time": "2024-01-15T12:30:00Z",
+      "actual_delivered_at": "2024-01-15T14:05:00Z",
       "payment_method": "card",
       "payment_status": "paid",
       "_note": "Very late delivery — 95 min over estimate, qualifies for full refund"
@@ -193,6 +203,8 @@
       "status": "preparing",
       "estimated_delivery_min": 35,
       "actual_delivery_min": null,
+      "promised_eta_at_order_time": "2024-01-15T13:35:00Z",
+      "actual_delivered_at": null,
       "payment_method": "card",
       "payment_status": "paid",
       "_note": "In-progress vegetarian order (preparing) — tests priority_handling and cancellation; priority_handling must NOT be offered for delivered orders"
@@ -211,9 +223,30 @@
       "status": "out_for_delivery",
       "estimated_delivery_min": 40,
       "actual_delivery_min": null,
+      "promised_eta_at_order_time": "2024-01-15T13:40:00Z",
+      "actual_delivered_at": null,
       "payment_method": "card",
       "payment_status": "paid",
       "_note": "In-progress order (out_for_delivery) with allergen items — tests priority_handling and allergen safety detection"
+    }
+    ,{
+      "order_id": "ORD-013",
+      "customer_id": "CUST-013",
+      "customer_name": "Diya Nair",
+      "email": "diya@example.com",
+      "items": [
+        {"name": "Chicken Wrap", "price": 9.99, "quantity": 1, "veg": false, "allergens": ["gluten"]},
+        {"name": "Mango Smoothie", "price": 4.49, "quantity": 1, "veg": true, "allergens": []}
+      ],
+      "total": 14.48,
+      "status": "delivered",
+      "estimated_delivery_min": 30,
+      "actual_delivery_min": 38,
+      "promised_eta_at_order_time": "2024-01-15T14:30:00Z",
+      "actual_delivered_at": "2024-01-15T14:38:00Z",
+      "payment_method": "card",
+      "payment_status": "paid",
+      "_note": "8-min delay — below LATE_DELIVERY_NONE_MIN(10) threshold; claim-contradicts-data test case"
     }
   ],
   "refund_histories": {
@@ -228,6 +261,7 @@
     "CUST-009": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
     "CUST-010": {"count_last_7_days": 1, "count_last_30_days": 1, "total_lifetime": 1, "last_issues": ["quality_issue"]},
     "CUST-011": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
-    "CUST-012": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []}
+    "CUST-012": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []},
+    "CUST-013": {"count_last_7_days": 0, "count_last_30_days": 0, "total_lifetime": 0, "last_issues": []}
   }
 }

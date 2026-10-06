@@ -23,6 +23,12 @@ from app.ops_tools import (
     get_support_policy, get_pending_escalations,
     get_pending_human_checks, get_support_stats,
 )
+from app.tenant import get_tenant_widget_config, list_tenants, DEFAULT_TENANT_ID
+from app.case import (
+    create_case, get_case_for_session, update_case, list_cases,
+    get_case as get_case_record, case_stats, CaseStatus,
+)
+from app.confirmation import create_confirmation, validate_and_accept, reject_confirmation
 
 
 # ── Startup: warm up RAG index ────────────────────────────────────────────────
@@ -59,13 +65,17 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
-    company_name: Optional[str] = "Support"  # for widget customisation
-    action: Optional[str] = None                      # "accept" | "select" (from frontend buttons)
+    tenant_id: Optional[str] = None                   # which business tenant (default: demo_foodco)
+    company_name: Optional[str] = "Support"           # legacy; widget now reads from tenant config
+    action: Optional[str] = None                      # "accept" | "decline" | "select" | "evidence_uploaded" | "skip_evidence"
     selected_resolution_type: Optional[str] = None    # resolution type chosen via option picker
+    conf_id: Optional[str] = None                     # CONF-xxx token returned from a previous offer
 
 
 class ChatResponse(BaseModel):
     session_id: str
+    case_id: Optional[str] = None        # platform case identifier
+    conf_id: Optional[str] = None        # CONF-xxx token; must be echoed back on "accept"
     response: str
     decision: Optional[str] = None       # resolution_type (renamed for API compat)
     order_id: Optional[str] = None
@@ -102,12 +112,41 @@ async def _run_chat(
     user_message: str,
     action: Optional[str] = None,
     selected_resolution_type: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    conf_id: Optional[str] = None,
 ) -> dict:
     """Load session state, run the LangGraph pipeline, persist state."""
     graph = get_graph()
+    effective_tenant = tenant_id or DEFAULT_TENANT_ID
 
     # Load or create session state
     session = get_session(session_id)
+
+    # Create or retrieve the platform case for this session
+    existing_case = get_case_for_session(session_id)
+    if existing_case:
+        case_id = existing_case["case_id"]
+    else:
+        case_id = create_case(
+            session_id=session_id,
+            tenant_id=effective_tenant,
+        )
+
+    # Server-side confirmation gate: validate CONF-xxx before accepting
+    if action == "accept" and conf_id:
+        validation = validate_and_accept(conf_id, session_id)
+        if not validation["ok"]:
+            return {
+                "case_id": case_id,
+                "response": f"Your confirmation has expired or is invalid ({validation['error']}). Please request a new offer.",
+                "decision": None, "order_id": session.get("order_id"),
+                "risk_score": session.get("risk_score"), "severity": session.get("severity"),
+                "escalated": False, "pending_offer": None,
+                "resolution_options": None, "evidence_required": False,
+                "conf_id": None,
+            }
+    elif action == "decline" and conf_id:
+        reject_confirmation(conf_id)
 
     # Append user message to history
     existing_messages = session.get("messages", [])
@@ -154,6 +193,9 @@ async def _run_chat(
         "evidence_required": session.get("evidence_required", False),
         "evidence_result":   session.get("evidence_result"),
         "evidence_path":     session.get("evidence_path"),
+        # Verification layer
+        "verification_result": session.get("verification_result"),
+        "case_status":         session.get("case_status"),
         # Resolution output
         "resolution_type": None,
         "compensation_amount": None,
@@ -198,6 +240,8 @@ async def _run_chat(
         "evidence_required": result.get("evidence_required", session.get("evidence_required", False)),
         "evidence_result":   result.get("evidence_result") or session.get("evidence_result"),
         "evidence_path":     result.get("evidence_path") or session.get("evidence_path"),
+        "verification_result": result.get("verification_result") or session.get("verification_result"),
+        "case_status":         result.get("case_status"),
         # Never persist button-action fields — they are single-turn only
         "action": None,
         "selected_resolution_type": None,
@@ -206,17 +250,59 @@ async def _run_chat(
     }
     save_session(session_id, updated_session)
 
+    # Derive case status from graph output
+    graph_case_status = result.get("case_status")
+    is_escalated = result.get("escalated", False)
     pending_offer = result.get("pending_offer")
-    evidence_required = bool(
-        pending_offer and pending_offer.get("evidence_required")
+    evidence_required = graph_case_status == "awaiting_evidence"
+
+    if is_escalated:
+        new_case_status = CaseStatus.ESCALATED
+    elif resolution_type in resolved_types:
+        new_case_status = CaseStatus.RESOLVED
+    elif evidence_required or pending_offer:
+        new_case_status = CaseStatus.WAITING_CONFIRMATION
+    else:
+        new_case_status = CaseStatus.ACTIVE
+
+    ver_result = result.get("verification_result") or session.get("verification_result") or {}
+    ev_confidence = int((ver_result.get("confidence") or 0) * 100)
+
+    update_case(
+        case_id,
+        status=new_case_status,
+        customer_id=result.get("customer_id") or session.get("customer_id"),
+        reference_id=result.get("order_id") or session.get("order_id"),
+        issue_type=result.get("complaint_type") or session.get("complaint_type"),
+        claim_text=result.get("claim_description") or session.get("claim_description"),
+        risk_score=result.get("risk_score") or 0,
+        evidence_confidence=ev_confidence,
+        recommended_resolution=resolution_type,
+        actual_resolution=resolution_type if new_case_status == CaseStatus.RESOLVED else None,
+        escalation_status="escalated" if is_escalated else None,
     )
+
+    # Mint a new CONF-xxx token whenever a fresh pending offer is returned
+    new_conf_id: Optional[str] = None
+    if pending_offer and not evidence_required:
+        action_type = pending_offer.get("resolution_type") or "unknown"
+        amount = float(pending_offer.get("compensation_amount") or 0)
+        new_conf_id = create_confirmation(
+            case_id=case_id,
+            session_id=session_id,
+            action_type=action_type,
+            amount=amount,
+        )
+
     return {
+        "case_id": case_id,
+        "conf_id": new_conf_id,
         "response": result.get("final_response", "I'm sorry, something went wrong. Please try again."),
         "decision": resolution_type,
         "order_id": result.get("order_id") or session.get("order_id"),
         "risk_score": result.get("risk_score"),
         "severity": result.get("severity"),
-        "escalated": result.get("escalated", False),
+        "escalated": is_escalated,
         "pending_offer": pending_offer,
         "resolution_options": pending_offer.get("resolution_options") if pending_offer else None,
         "evidence_required": evidence_required,
@@ -238,12 +324,16 @@ async def chat(req: ChatRequest):
             session_id, req.message,
             action=req.action,
             selected_resolution_type=req.selected_resolution_type,
+            tenant_id=req.tenant_id,
+            conf_id=req.conf_id,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     return ChatResponse(
         session_id=session_id,
+        case_id=result.get("case_id"),
+        conf_id=result.get("conf_id"),
         response=result["response"],
         decision=result.get("decision"),
         order_id=result.get("order_id"),
@@ -362,6 +452,47 @@ async def policy(issue_type: str):
     return get_support_policy(issue_type)
 
 
+@app.get("/api/tenant/{tenant_id}/config")
+async def tenant_config(tenant_id: str):
+    """Widget config for a tenant — safe to expose to browsers."""
+    cfg = get_tenant_widget_config(tenant_id)
+    if not cfg:
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+    return cfg
+
+
+@app.get("/api/tenants")
+async def tenants_list():
+    """List all registered tenants (name, id, industry)."""
+    return list_tenants()
+
+
+@app.get("/api/cases")
+async def cases_list(
+    tenant_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Dashboard: paginated list of cases, optionally filtered by tenant or status."""
+    return list_cases(tenant_id=tenant_id, status=status, limit=limit, offset=offset)
+
+
+@app.get("/api/cases/stats")
+async def cases_stats(tenant_id: Optional[str] = None):
+    """Dashboard: aggregate counts (total, active, resolved, escalated, pcts)."""
+    return case_stats(tenant_id=tenant_id)
+
+
+@app.get("/api/cases/{case_id}")
+async def case_detail(case_id: str):
+    """Dashboard: single case detail."""
+    case = get_case_record(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found")
+    return case
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
@@ -443,3 +574,13 @@ async def serve_widget():
     if widget_path.exists():
         return FileResponse("widget.html")
     return {"error": "widget.html not found"}
+
+
+@app.get("/dashboard")
+async def serve_dashboard():
+    """Serve the business ops dashboard."""
+    from pathlib import Path
+    p = Path("dashboard.html")
+    if p.exists():
+        return FileResponse("dashboard.html", media_type="text/html")
+    return {"error": "dashboard.html not found"}

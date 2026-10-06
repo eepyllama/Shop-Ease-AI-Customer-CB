@@ -28,8 +28,9 @@ in their message — NOT what you might infer from any order data.
 
 # EXPECTATIONS
 - complaint_type: one of missing_item | quality_issue | wrong_order | late_delivery |
-  dietary_mismatch | allergen_violation | freebie_missing | payment_issue | refund_status | other
+  dietary_mismatch | allergen_violation | foreign_object | freebie_missing | payment_issue | refund_status | other
   — choose based ONLY on what the customer described, never from inferred order attributes.
+  Use foreign_object when the customer reports finding a non-food item (insect, hair, plastic, glass, etc.) in their food.
 - order_id: extract exactly as written, or null
 - claim_description: ≤30 words, what the customer says happened (their words, not order data)
 - confidence: float 0.0–1.0

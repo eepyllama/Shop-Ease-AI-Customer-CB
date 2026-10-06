@@ -1,0 +1,204 @@
+{
+  "dishes": [
+    {
+      "item_id": "DISH-001",
+      "name": "Paneer Butter Masala",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": ["paneer"]
+    },
+    {
+      "item_id": "DISH-002",
+      "name": "Butter Chicken",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": ["chicken"]
+    },
+    {
+      "item_id": "DISH-003",
+      "name": "Chicken Tikka Masala",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": ["chicken"]
+    },
+    {
+      "item_id": "DISH-004",
+      "name": "Dal Tadka",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-005",
+      "name": "Palak Paneer",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": ["paneer"]
+    },
+    {
+      "item_id": "DISH-006",
+      "name": "Chicken Biryani",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": ["chicken"]
+    },
+    {
+      "item_id": "DISH-007",
+      "name": "Vegetable Biryani",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-008",
+      "name": "Chole Bhature",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-009",
+      "name": "Pav Bhaji",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk", "gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-010",
+      "name": "Masala Dosa",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-011",
+      "name": "Idli Sambar",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-012",
+      "name": "Rajma Chawal",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-013",
+      "name": "Aloo Paratha",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk", "gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-014",
+      "name": "Fish Curry",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": ["fish"]
+    },
+    {
+      "item_id": "DISH-015",
+      "name": "Prawn Masala",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": ["shellfish"],
+      "typical_visible_proteins": ["prawn", "shrimp"]
+    },
+    {
+      "item_id": "DISH-016",
+      "name": "Lamb Seekh Kebab",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": ["lamb", "mutton"]
+    },
+    {
+      "item_id": "DISH-017",
+      "name": "Mutton Rogan Josh",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": [],
+      "typical_visible_proteins": ["lamb", "mutton"]
+    },
+    {
+      "item_id": "DISH-018",
+      "name": "Egg Curry",
+      "is_veg": false,
+      "contains_egg": true,
+      "allergens": [],
+      "typical_visible_proteins": ["egg"]
+    },
+    {
+      "item_id": "DISH-019",
+      "name": "Veg Hakka Noodles",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["gluten", "soy"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-020",
+      "name": "Chicken Fried Rice",
+      "is_veg": false,
+      "contains_egg": false,
+      "allergens": ["soy"],
+      "typical_visible_proteins": ["chicken"]
+    },
+    {
+      "item_id": "DISH-021",
+      "name": "Paneer Tikka",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": ["paneer"]
+    },
+    {
+      "item_id": "DISH-022",
+      "name": "Dahi Puri",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk", "gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-023",
+      "name": "Samosa",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-024",
+      "name": "Gulab Jamun",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk", "gluten"],
+      "typical_visible_proteins": []
+    },
+    {
+      "item_id": "DISH-025",
+      "name": "Mango Lassi",
+      "is_veg": true,
+      "contains_egg": false,
+      "allergens": ["milk"],
+      "typical_visible_proteins": []
+    }
+  ]
+}

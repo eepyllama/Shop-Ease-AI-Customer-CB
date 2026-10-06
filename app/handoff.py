@@ -78,6 +78,12 @@ CUSTOMER_ESCALATION_MESSAGES = {
         "specialist team for a closer look. They'll be in touch within 24 hours. "
         "Your case reference is {order_id}."
     ),
+    "foreign_object_critical": (
+        "IMPORTANT: Please stop eating anything from this order immediately. "
+        "If you are feeling unwell or experiencing any symptoms, seek medical advice right away. "
+        "I've flagged this as an urgent safety concern and our specialist team will contact you "
+        "within 2 hours. Your case reference is {order_id}."
+    ),
     "default": (
         "I've escalated your case to our support team. "
         "They'll follow up within 24 hours. "
@@ -139,8 +145,21 @@ def generate_handoff_summary(
         open_issues_note = "Open unresolved issues:\n" + "\n".join(parts)
 
     evidence_note = ""
+    # Prefer the structured verification_result; fall back to raw evidence_result
+    vr = state.get("verification_result")
     ev = state.get("evidence_result")
-    if ev:
+    if vr:
+        obs_text = "; ".join(vr.get("observations", [])[:3]) or "none"
+        flags_text = ", ".join(vr.get("flags", [])) or "none"
+        thumb = (ev or {}).get("thumbnail_path", "N/A") if ev else "N/A"
+        evidence_note = (
+            f"Verification: {vr.get('status', 'unknown')} via {vr.get('method', '?')} "
+            f"(confidence: {vr.get('confidence', 0):.0%}) | "
+            f"Flags: {flags_text}\n"
+            f"Observations: {obs_text}\n"
+            f"Thumbnail: {thumb}"
+        )
+    elif ev:
         obs_text = "; ".join(ev.get("observations", [])[:3]) or "none"
         evidence_note = (
             f"Evidence verdict: {ev.get('verdict', 'unknown')} "
